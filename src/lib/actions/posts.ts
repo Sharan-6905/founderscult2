@@ -58,7 +58,7 @@ export async function createGuestPost(content: string) {
   }
 }
 
-export async function createPost(content: string, stream_id: string = 'all', media_urls: string[] = []) {
+export async function createPost(content: string, slug: string = 'all', media_urls: string[] = []) {
   if (!content.trim()) return { error: 'Content is empty' };
 
   try {
@@ -69,17 +69,30 @@ export async function createPost(content: string, stream_id: string = 'all', med
       return { error: 'You must be logged in to post.' };
     }
 
+    let stream_id: string | null = null;
+    if (slug !== 'all') {
+      const { data: streamData } = await supabase
+        .from('streams')
+        .select('id')
+        .eq('slug', slug)
+        .single();
+      
+      if (streamData) {
+        stream_id = streamData.id;
+      }
+    }
+
     const { data, error } = await supabase.from('posts').insert({
       content: content.trim(),
       author_id: user.id,
-      stream_id: stream_id === 'all' ? null : stream_id,
-      tags: stream_id !== 'all' ? [stream_id] : [],
+      stream_id: stream_id,
+      tags: slug !== 'all' ? [slug] : [],
       media_urls: media_urls
     }).select().single();
 
     if (error) {
       console.error('Post error:', error);
-      return { error: error.message };
+      return { error: `Failed to create post: ${error.message}` };
     }
 
     revalidatePath('/feed');

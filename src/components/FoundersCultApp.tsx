@@ -9,6 +9,7 @@ import {
   ArrowBigUp, ArrowBigDown
 } from 'lucide-react';
 import { usePosts } from '@/lib/hooks/usePosts';
+import { useUserProfile, useCurrentUserProfile } from '@/lib/hooks/useUserProfile';
 import { createPost } from '@/lib/actions/posts';
 
 // --- CONSTANTS ---
@@ -38,14 +39,19 @@ export default function FoundersCultApp() {
   // Supabase Live Data Hook
   const { posts, loading } = usePosts();
 
+  const { 
+    profile: currentUserProfile, 
+    userId: currentUserId, 
+    loading: userLoading, 
+    refetch: refetchCurrentUser 
+  } = useCurrentUserProfile();
+
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [activeStream, setActiveStream] = useState('all');
   const [activePanel, setActivePanel] = useState<'none' | 'post' | 'profile' | 'circuit'>('none');
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
   const [followedUserIds, setFollowedUserIds] = useState<Set<string>>(new Set());
   const [userVotes, setUserVotes] = useState<Record<string, 'up' | 'down' | null>>({});
   const [feedbackPrompt, setFeedbackPrompt] = useState<string | null>(null);
@@ -69,57 +75,28 @@ export default function FoundersCultApp() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Setup theme & User
+  // Setup theme
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-
-    // Get current user and their profile
-    const getUserData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUserId(user.id);
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        if (profile) {
-          setCurrentUserProfile(profile);
-          setEditForm({
-            full_name: profile.full_name || '',
-            username: profile.username || '',
-            startup_name: profile.startup_name || '',
-            bio: profile.bio || '',
-            website: profile.website || '',
-            location: profile.location || ''
-          });
-        } else {
-          // Fallback to auth metadata if profile doesn't exist yet
-          const fallback = {
-            id: user.id,
-            full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || "Founder",
-            username: user.user_metadata?.username || user.email?.split('@')[0] || "founder",
-            avatar_url: null,
-            traction_points: 0
-          };
-          setCurrentUserProfile(fallback);
-          setEditForm({
-            full_name: fallback.full_name,
-            username: fallback.username,
-            startup_name: '',
-            bio: '',
-            website: '',
-            location: ''
-          });
-        }
-      }
-    };
-    getUserData();
   }, [theme]);
+
+  // Handle setting edit form when current user profile is available
+  useEffect(() => {
+    if (currentUserProfile) {
+      setEditForm({
+        full_name: currentUserProfile.full_name || '',
+        username: currentUserProfile.username || '',
+        startup_name: currentUserProfile.startup_name || '',
+        bio: currentUserProfile.bio || '',
+        website: currentUserProfile.website || '',
+        location: currentUserProfile.location || ''
+      });
+    }
+  }, [currentUserProfile]);
 
   const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
 
@@ -182,21 +159,30 @@ export default function FoundersCultApp() {
     e.preventDefault();
     if (!currentUserId) return;
 
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({
-        id: currentUserId,
-        ...editForm,
-        updated_at: new Date().toISOString()
-      });
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: currentUserId,
+          full_name: editForm.full_name,
+          username: editForm.username,
+          startup_name: editForm.startup_name,
+          bio: editForm.bio,
+          website: editForm.website,
+          location: editForm.location,
+          updated_at: new Date().toISOString()
+        });
 
-    if (error) {
-      alert('Error updating profile: ' + error.message);
-    } else {
-      setCurrentUserProfile((prev: any) => ({ ...prev, ...editForm }));
+      if (error) throw error;
+      
       setIsEditModalOpen(false);
-      // Refresh to sync everything
-      window.location.reload(); 
+      refetchCurrentUser();
+      if (targetId === currentUserId) {
+        // Force refetch of target profile if it's the same
+        refetchTargetProfile();
+      }
+    } catch (err: any) {
+      console.error('Error updating profile:', err);
     }
   };
 
@@ -240,7 +226,13 @@ export default function FoundersCultApp() {
         imageUrls.push(url);
       }
 
-      await createPost(composeContent, activeStream, imageUrls);
+      const result = await createPost(composeContent, activeStream, imageUrls);
+      
+      if (result?.error) {
+        alert(result.error);
+        setIsSubmitting(false);
+        return;
+      }
       
       setComposeContent('');
       setSelectedFile(null);
@@ -249,7 +241,7 @@ export default function FoundersCultApp() {
       setIsComposeOpen(false);
     } catch (error) {
       console.error('Error creating post:', error);
-      alert('Failed to upload image. Please try again.');
+      alert('An unexpected error occurred. Please try again.');
       setIsSubmitting(false);
     }
   };
@@ -272,60 +264,25 @@ export default function FoundersCultApp() {
 
   const activePost = posts.find(p => p.id === selectedPostId);
   
-  // Dynamically build profile from any post they've authored or fallback to currentUserProfile
   const targetId = selectedProfileId || (activePanel === 'profile' ? currentUserId : null);
-  
-  // Try to find the author data from posts, or use the currentUserProfile if it's the current user
-  const profilePost = posts.find(p => p.author_id === targetId);
-  const authorData = (targetId === currentUserId && currentUserProfile) 
-    ? {
-        name: currentUserProfile.full_name,
-        username: currentUserProfile.username,
-        avatar: currentUserProfile.avatar_url,
-        startup: currentUserProfile.startup_name,
-        bio: currentUserProfile.bio,
-        website: currentUserProfile.website,
-        location: currentUserProfile.location,
-        traction_points: currentUserProfile.traction_points
-      }
-    : profilePost?.author;
+  const { profile: targetProfile, loading: profileLoading, refetch: refetchTargetProfile } = useUserProfile(targetId);
+  const { posts: profilePosts, loading: profilePostsLoading } = usePosts(targetId);
+  const myTractionPoints = currentUserProfile?.traction_points || 0;
 
-  const userPostsForTraction = posts.filter(p => p.author_id === targetId);
-  const dynamicTraction = userPostsForTraction.reduce((acc, p) => acc + (p.likes_count || 0) + (p.comments_count || 0) * 2, 0);
-
-  // Global my traction for sidebar
-  const myTractionPoints = posts
-    .filter(p => p.author_id === currentUserId)
-    .reduce((acc, p) => acc + (p.likes_count || 0) + (p.comments_count || 0) * 2, 0);
-
-  const activeProfile = authorData ? {
+  const activeProfile = targetProfile ? {
     id: targetId,
-    name: authorData.name || 'Unknown Founder',
-    handle: `@${authorData.username || 'founder'}`,
-    avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name || 'F')}&background=ffaa00&color=fff`,
-    coverImage: 'https://images.unsplash.com/photo-1550439062-609e1531270e?auto=format&fit=crop&q=80&w=1000',
-    bio: authorData.startup ? `Building ${authorData.startup}` : (authorData.bio || 'Building something awesome.'),
-    location: authorData.location || 'Internet',
-    website: authorData.website || 'startup.com',
-    followers: (Math.floor(Math.random() * 1000)) + (followedUserIds.has(targetId!) ? 1 : 0),
-    following: Math.floor(Math.random() * 500),
+    name: targetProfile.full_name || 'Unknown Founder',
+    handle: `@${targetProfile.username || 'founder'}`,
+    avatar: targetProfile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(targetProfile.full_name || 'F')}&background=ffaa00&color=fff`,
+    coverImage: targetProfile.cover_url || 'https://images.unsplash.com/photo-1550439062-609e1531270e?auto=format&fit=crop&q=80&w=1000',
+    bio: targetProfile.startup_name ? `Building ${targetProfile.startup_name}` : (targetProfile.bio || 'Building something awesome.'),
+    location: targetProfile.location || 'Internet',
+    website: targetProfile.website || 'startup.com',
+    followers: targetProfile.followers_count,
+    following: targetProfile.following_count,
     isFollowing: followedUserIds.has(targetId!),
-    traction_points: (authorData.traction_points !== undefined && authorData.traction_points !== null) 
-      ? authorData.traction_points 
-      : dynamicTraction
-  } : (activePanel === 'profile' && !targetId ? {
-    id: 'loading',
-    name: 'Loading...',
-    handle: '@loading',
-    avatar: 'https://i.pravatar.cc/150',
-    coverImage: 'https://images.unsplash.com/photo-1550439062-609e1531270e?auto=format&fit=crop&q=80&w=1000',
-    bio: 'Loading your details...',
-    location: '...',
-    website: '...',
-    followers: 0,
-    following: 0,
-    traction_points: 0
-  } : null);
+    traction_points: targetProfile.traction_points
+  } : null;
 
   const breakpointColumnsObj = {
     default: 4,
@@ -391,27 +348,42 @@ export default function FoundersCultApp() {
 
         {/* User Footer */}
         <div className="h-16 border-t border-[var(--border-color)] flex items-center justify-between px-2 md:px-4">
-          <button 
-            onClick={() => openProfile(currentUserId)}
-            className="flex items-center gap-3 hover:bg-[var(--bg-elevated-2)] p-2 rounded-md transition-colors w-full"
-          >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent-amber)] to-[var(--accent-gold)] text-white font-bold flex items-center justify-center overflow-hidden">
-              {currentUserProfile?.avatar_url ? (
-                <img src={currentUserProfile.avatar_url} className="w-full h-full object-cover" alt="" />
-              ) : (
-                <span>{(currentUserProfile?.full_name || 'M').charAt(0)}</span>
-              )}
+          {userLoading ? (
+            <div className="flex items-center gap-3 p-2 w-full animate-pulse">
+              <div className="w-8 h-8 rounded-full bg-[var(--bg-elevated-2)]"></div>
+              <div className="hidden md:block h-4 w-24 bg-[var(--bg-elevated-2)] rounded"></div>
             </div>
-            <div className="hidden md:block text-left flex-1 min-w-0">
-              <div className="text-sm font-bold truncate">
-                {currentUserProfile?.full_name || "My Profile"}
+          ) : currentUserId ? (
+            <button 
+              onClick={() => openProfile(currentUserId)}
+              className="flex items-center gap-3 hover:bg-[var(--bg-elevated-2)] p-2 rounded-md transition-colors w-full"
+            >
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent-amber)] to-[var(--accent-gold)] text-white font-bold flex items-center justify-center overflow-hidden">
+                {currentUserProfile?.avatar_url ? (
+                  <img src={currentUserProfile.avatar_url} className="w-full h-full object-cover" alt="" />
+                ) : (
+                  <span>{(currentUserProfile?.full_name || 'M').charAt(0)}</span>
+                )}
               </div>
-              <div className="text-[10px] text-[var(--accent-amber)] font-bold uppercase tracking-wider flex items-center gap-1">
-                <TrendingUp size={10} /> {myTractionPoints} Points
+              <div className="hidden md:block text-left flex-1 min-w-0">
+                <div className="text-sm font-bold truncate">
+                  {currentUserProfile?.full_name || "My Profile"}
+                </div>
+                <div className="text-[10px] text-[var(--accent-amber)] font-bold uppercase tracking-wider flex items-center gap-1">
+                  <TrendingUp size={10} /> {myTractionPoints} Points
+                </div>
               </div>
-            </div>
-            <Settings size={18} className="hidden md:block text-[var(--text-muted)]" />
-          </button>
+              <Settings size={18} className="hidden md:block text-[var(--text-muted)]" />
+            </button>
+          ) : (
+            <a 
+              href="/auth/login"
+              className="flex items-center gap-3 hover:bg-[var(--bg-elevated-2)] p-2 rounded-md transition-colors w-full text-[var(--accent-amber)] font-bold"
+            >
+              <Plus size={20} />
+              <span className="hidden md:block">Sign In</span>
+            </a>
+          )}
         </div>
       </div>
 
@@ -730,9 +702,26 @@ export default function FoundersCultApp() {
             )}
 
             {activePanel === 'profile' && !activeProfile && (
-              <div className="flex flex-col items-center justify-center h-full p-6 text-[var(--text-muted)] font-[family-name:var(--font-sans)]">
-                <Loader2 size={32} className="animate-spin mb-4 text-[var(--accent-amber)]" />
-                <p>Syncing profile data...</p>
+              <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+                {profileLoading ? (
+                  <>
+                    <Loader2 size={32} className="animate-spin mb-4 text-[var(--accent-amber)]" />
+                    <p className="text-[var(--text-muted)] text-sm">Syncing profile data...</p>
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp size={48} className="text-[var(--border-color)] mb-4" />
+                    <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">Profile Not Found</h3>
+                    <p className="text-[var(--text-muted)] text-sm mb-6">
+                      {currentUserId ? "We couldn't find details for this user." : "Please sign in to view your profile details."}
+                    </p>
+                    {!currentUserId && (
+                      <a href="/auth/login" className="bg-[var(--accent-amber)] text-white px-6 py-2 rounded-full font-bold transition-all hover:bg-[var(--accent-gold)]">
+                        Sign In
+                      </a>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
@@ -797,17 +786,25 @@ export default function FoundersCultApp() {
 
                   {/* Profile Posts */}
                   <div className="space-y-4">
-                    {posts.filter(p => p.author_id === activeProfile.id).map(post => (
-                      <div key={post.id} className="p-4 bg-[var(--bg-elevated-2)] rounded-xl border border-[var(--border-color)] cursor-pointer hover:border-[var(--accent-amber)]/50 transition-colors" onClick={() => openPost(post.id)}>
-                        <div className="text-sm text-[var(--text-secondary)] mb-3">{post.content.length > 100 ? post.content.substring(0, 100) + '...' : post.content}</div>
-                        <div className="flex gap-4 text-xs text-[var(--text-muted)] font-[family-name:var(--font-sans)]">
-                          <span className="flex items-center gap-1"><Heart size={12}/> {post.likes_count}</span>
-                          <span className="flex items-center gap-1"><MessageSquare size={12}/> {post.comments_count}</span>
-                        </div>
+                    {profilePostsLoading ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 size={24} className="animate-spin text-[var(--accent-amber)]" />
                       </div>
-                    ))}
-                    {posts.filter(p => p.author_id === activeProfile.id).length === 0 && (
-                      <div className="text-center text-[var(--text-muted)] py-8 text-sm">No posts yet.</div>
+                    ) : (
+                      <>
+                        {profilePosts.map(post => (
+                          <div key={post.id} className="p-4 bg-[var(--bg-elevated-2)] rounded-xl border border-[var(--border-color)] cursor-pointer hover:border-[var(--accent-amber)]/50 transition-colors" onClick={() => openPost(post.id)}>
+                            <div className="text-sm text-[var(--text-secondary)] mb-3">{post.content.length > 100 ? post.content.substring(0, 100) + '...' : post.content}</div>
+                            <div className="flex gap-4 text-xs text-[var(--text-muted)] font-[family-name:var(--font-sans)]">
+                              <span className="flex items-center gap-1"><Heart size={12}/> {post.likes_count}</span>
+                              <span className="flex items-center gap-1"><MessageSquare size={12}/> {post.comments_count}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {profilePosts.length === 0 && (
+                          <div className="text-center text-[var(--text-muted)] py-8 text-sm">No posts yet.</div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

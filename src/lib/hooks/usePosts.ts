@@ -20,20 +20,23 @@ export type Post = {
   };
 };
 
-export function usePosts() {
+export function usePosts(authorId?: string | null) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchPosts();
 
-    // Subscribe to realtime inserts
+    // Subscribe to realtime inserts with a unique channel name
+    const channelId = `posts_${authorId || 'all'}_${Math.random().toString(36).substring(2, 9)}`;
     const channel = supabase
-      .channel('public:posts')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
-        console.log('New post received!', payload.new);
-        // In a real app, we would fetch the author details for this new post, 
-        // but for now we'll just refetch or optimistically prepend if we have the data.
+      .channel(channelId)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'posts',
+        filter: authorId ? `author_id=eq.${authorId}` : undefined
+      }, () => {
         fetchPosts();
       })
       .subscribe();
@@ -41,13 +44,12 @@ export function usePosts() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [authorId]);
 
   async function fetchPosts() {
     try {
       setLoading(true);
-      // Fetch posts with their author profiles
-      const { data, error } = await supabase
+      let query = supabase
         .from('posts')
         .select(`
           *,
@@ -55,10 +57,17 @@ export function usePosts() {
             username,
             full_name,
             avatar_url,
-            startup_name
+            startup_name,
+            traction_points
           )
         `)
         .order('created_at', { ascending: false });
+
+      if (authorId) {
+        query = query.eq('author_id', authorId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching posts:', JSON.stringify(error, null, 2));
