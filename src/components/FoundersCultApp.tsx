@@ -38,7 +38,7 @@ export default function FoundersCultApp() {
   // Supabase Live Data Hook
   const { posts, loading } = usePosts();
 
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [activeStream, setActiveStream] = useState('all');
   const [activePanel, setActivePanel] = useState<'none' | 'post' | 'profile' | 'circuit'>('none');
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
