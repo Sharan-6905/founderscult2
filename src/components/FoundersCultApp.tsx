@@ -322,7 +322,10 @@ export default function FoundersCultApp() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[var(--bg-base)] text-[var(--text-primary)] font-[family-name:var(--font-serif)] selection:bg-[var(--accent-amber)] selection:text-white relative">
+    <div 
+      style={{ '--accent-amber': '#38bdf8', '--accent-gold': '#7dd3fc' } as React.CSSProperties}
+      className="flex h-screen w-full overflow-hidden bg-[var(--bg-base)] text-[var(--text-primary)] font-[family-name:var(--font-serif)] selection:bg-[var(--accent-amber)] selection:text-white relative"
+    >
       
       {/* ================= ZONE 1: LEFT CHANNEL PANEL ================= */}
       <div className="w-16 md:w-64 flex-shrink-0 flex flex-col bg-[var(--bg-elevated-1)] border-r border-[var(--border-color)] z-10 transition-all duration-300">
