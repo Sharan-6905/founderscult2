@@ -17,7 +17,7 @@ export default function LandingPage({ error, message }: { error?: string, messag
 
   const itemVariants = {
     hidden: { opacity: 0, y: 30 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 50, damping: 20 } }
+    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 50, damping: 20 } }
   };
 
   return (
@@ -93,7 +93,7 @@ export default function LandingPage({ error, message }: { error?: string, messag
           initial={{ opacity: 0, y: 100, rotateX: -10 }}
           whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
           viewport={{ once: true, margin: "-100px" }}
-          transition={{ type: "spring", stiffness: 40, damping: 20 }}
+          transition={{ type: "spring" as const, stiffness: 40, damping: 20 }}
           className="w-full max-w-md bg-[var(--bg-elevated-1)] p-10 rounded-[2.5rem] border border-[var(--border-color)] shadow-2xl relative"
         >
           {/* Decorative background blur inside card */}

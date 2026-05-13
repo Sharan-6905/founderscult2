@@ -747,7 +747,7 @@ export default function FoundersCultApp() {
                       </button>
                     ) : (
                       <button 
-                        onClick={() => toggleFollow(activeProfile.id)}
+                        onClick={() => activeProfile.id && toggleFollow(activeProfile.id)}
                         className={`px-6 py-2 rounded-full font-bold text-sm transition-all shadow-sm ${
                           activeProfile.isFollowing 
                             ? 'bg-[var(--bg-elevated-2)] text-[var(--text-primary)] border border-[var(--border-color)]' 
