@@ -54,7 +54,9 @@ export default function FoundersCultApp() {
     full_name: '',
     username: '',
     startup_name: '',
-    bio: ''
+    bio: '',
+    website: '',
+    location: ''
   });
   const replyInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -81,7 +83,7 @@ export default function FoundersCultApp() {
         setCurrentUserId(user.id);
         const { data: profile } = await supabase
           .from('profiles')
-          .select('id, username, full_name, avatar_url, startup_name')
+          .select('*')
           .eq('id', user.id)
           .single();
         
@@ -91,7 +93,9 @@ export default function FoundersCultApp() {
             full_name: profile.full_name || '',
             username: profile.username || '',
             startup_name: profile.startup_name || '',
-            bio: profile.bio || ''
+            bio: profile.bio || '',
+            website: profile.website || '',
+            location: profile.location || ''
           });
         } else {
           // Fallback to auth metadata if profile doesn't exist yet
@@ -107,7 +111,9 @@ export default function FoundersCultApp() {
             full_name: fallback.full_name,
             username: fallback.username,
             startup_name: '',
-            bio: ''
+            bio: '',
+            website: '',
+            location: ''
           });
         }
       }
@@ -268,14 +274,21 @@ export default function FoundersCultApp() {
   
   // Dynamically build profile from any post they've authored or fallback to currentUserProfile
   const targetId = selectedProfileId || (activePanel === 'profile' ? currentUserId : null);
+  
+  // Try to find the author data from posts, or use the currentUserProfile if it's the current user
   const profilePost = posts.find(p => p.author_id === targetId);
-  const authorData = profilePost?.author || (targetId === currentUserId && currentUserProfile ? {
-    name: currentUserProfile.full_name,
-    username: currentUserProfile.username,
-    avatar: currentUserProfile.avatar_url,
-    startup: currentUserProfile.startup_name,
-    traction_points: currentUserProfile.traction_points
-  } : null);
+  const authorData = (targetId === currentUserId && currentUserProfile) 
+    ? {
+        name: currentUserProfile.full_name,
+        username: currentUserProfile.username,
+        avatar: currentUserProfile.avatar_url,
+        startup: currentUserProfile.startup_name,
+        bio: currentUserProfile.bio,
+        website: currentUserProfile.website,
+        location: currentUserProfile.location,
+        traction_points: currentUserProfile.traction_points
+      }
+    : profilePost?.author;
 
   const userPostsForTraction = posts.filter(p => p.author_id === targetId);
   const dynamicTraction = userPostsForTraction.reduce((acc, p) => acc + (p.likes_count || 0) + (p.comments_count || 0) * 2, 0);
@@ -292,8 +305,8 @@ export default function FoundersCultApp() {
     avatar: authorData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorData.name || 'F')}&background=ffaa00&color=fff`,
     coverImage: 'https://images.unsplash.com/photo-1550439062-609e1531270e?auto=format&fit=crop&q=80&w=1000',
     bio: authorData.startup ? `Building ${authorData.startup}` : (authorData.bio || 'Building something awesome.'),
-    location: 'Internet',
-    website: 'startup.com',
+    location: authorData.location || 'Internet',
+    website: authorData.website || 'startup.com',
     followers: (Math.floor(Math.random() * 1000)) + (followedUserIds.has(targetId!) ? 1 : 0),
     following: Math.floor(Math.random() * 500),
     isFollowing: followedUserIds.has(targetId!),
@@ -738,8 +751,9 @@ export default function FoundersCultApp() {
                     {activeProfile.id === currentUserId ? (
                       <button 
                         onClick={() => setIsEditModalOpen(true)}
-                        className="bg-[var(--bg-elevated-2)] text-[var(--text-primary)] hover:bg-[var(--accent-amber)] hover:text-white px-6 py-2 rounded-full font-bold text-sm transition-all border border-[var(--border-color)]"
+                        className="w-full mt-4 bg-[var(--bg-elevated-2)] text-[var(--text-primary)] hover:bg-[var(--bg-elevated-3)] px-6 py-2.5 rounded-xl font-bold text-sm transition-all border border-[var(--border-color)] flex items-center justify-center gap-2 shadow-sm"
                       >
+                        <Settings size={16} />
                         Edit Profile
                       </button>
                     ) : (
@@ -923,6 +937,29 @@ export default function FoundersCultApp() {
                   className="w-full bg-[var(--bg-elevated-2)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm outline-none focus:border-[var(--accent-amber)] transition-all h-24 resize-none"
                   placeholder="Tell your story..."
                 ></textarea>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Website</label>
+                  <input 
+                    type="text" 
+                    value={editForm.website}
+                    onChange={e => setEditForm({...editForm, website: e.target.value})}
+                    className="w-full bg-[var(--bg-elevated-2)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm outline-none focus:border-[var(--accent-amber)] transition-all"
+                    placeholder="https://..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Location</label>
+                  <input 
+                    type="text" 
+                    value={editForm.location}
+                    onChange={e => setEditForm({...editForm, location: e.target.value})}
+                    className="w-full bg-[var(--bg-elevated-2)] border border-[var(--border-color)] rounded-xl py-3 px-4 text-sm outline-none focus:border-[var(--accent-amber)] transition-all"
+                    placeholder="City, Country"
+                  />
+                </div>
               </div>
 
               <div className="pt-4 flex gap-3">
