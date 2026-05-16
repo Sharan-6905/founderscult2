@@ -1195,7 +1195,7 @@ export default function FoundersCultApp() {
           { id: 'forums', label: 'Lab', icon: TrendingUp },
           { id: 'profile', label: 'You', icon: User },
         ].map((item) => {
-          const isActive = (item.id === 'profile' && activePanel === 'profile') || (item.id !== 'profile' && activeStream === item.id && activePanel === 'feed');
+          const isActive = (item.id === 'profile' && activePanel === 'profile') || (item.id !== 'profile' && activeStream === item.id && activePanel === 'none');
           return (
             <button
               key={item.id}
@@ -1204,7 +1204,7 @@ export default function FoundersCultApp() {
                   openProfile(currentUserId);
                 } else {
                   setActiveStream(item.id);
-                  setActivePanel('feed');
+                  setActivePanel('none');
                 }
               }}
               className={`flex flex-col items-center gap-1 transition-all ${isActive ? 'text-[#bef321]' : 'text-[var(--text-muted)]'}`}

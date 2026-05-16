@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useActionState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Zap, Users, Rocket, Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -30,13 +30,20 @@ const XIcon = ({ size = 18 }: { size?: number }) => (
   </svg>
 );
 
-// Wrapper for login to match useActionState signature
-async function loginWrapper(prevState: any, formData: FormData) {
-  return await login(formData);
-}
-
 export default function LandingPage({ error: initialError, message }: { error?: string, message?: string }) {
-  const [error, formAction, isPending] = useActionState(loginWrapper, initialError);
+  const [isPending, setIsPending] = React.useState(false);
+  const error = initialError;
+
+  const handleLogin = async (formData: FormData) => {
+    setIsPending(true);
+    try {
+      await login(formData);
+    } catch (err) {
+      // Next.js redirect throws an error, which is caught here
+      // If it's not a redirect, we'd handle it, but login() always redirects
+      setIsPending(false);
+    }
+  };
 
   const containerVariants = {
     hidden: {},
@@ -272,7 +279,7 @@ export default function LandingPage({ error: initialError, message }: { error?: 
             <span className="font-[family-name:var(--font-sans)] font-black text-xl bg-gradient-to-r from-[#bef321] via-[#00e5ff] to-[#7b2ff7] bg-clip-text text-transparent italic">CULT</span>
           </div>
 
-          <form action={formAction} className="space-y-6 relative z-10 font-[family-name:var(--font-sans)]">
+          <form action={handleLogin} className="space-y-6 relative z-10 font-[family-name:var(--font-sans)]">
             
             {error && (
               <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm text-center">
