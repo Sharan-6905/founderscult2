@@ -5,6 +5,7 @@ export type Post = {
   id: string;
   author_id: string;
   stream_id: string | null;
+  stream_slug?: string | null;
   content: string;
   media_urls: string[] | null;
   tags: string[] | null;
@@ -17,6 +18,7 @@ export type Post = {
     avatar: string;
     startup: string | null;
     traction_points: number;
+    location: string | null;
   };
 };
 
@@ -53,12 +55,16 @@ export function usePosts(authorId?: string | null) {
         .from('posts')
         .select(`
           *,
+          streams (
+            slug
+          ),
           profiles (
             username,
             full_name,
             avatar_url,
             startup_name,
-            traction_points
+            traction_points,
+            location
           )
         `)
         .order('created_at', { ascending: false });
@@ -80,6 +86,7 @@ export function usePosts(authorId?: string | null) {
           id: post.id,
           author_id: post.author_id,
           stream_id: post.stream_id,
+          stream_slug: post.streams ? (Array.isArray(post.streams) ? post.streams[0]?.slug : (post.streams as any).slug) : null,
           content: post.content,
           media_urls: post.media_urls,
           tags: post.tags,
@@ -92,18 +99,21 @@ export function usePosts(authorId?: string | null) {
             avatar: post.profiles[0]?.avatar_url || `https://i.pravatar.cc/150?u=${post.author_id}`,
             startup: post.profiles[0]?.startup_name,
             traction_points: post.profiles[0]?.traction_points || 0,
+            location: post.profiles[0]?.location,
           } : {
             name: post.profiles.full_name,
             username: post.profiles.username,
             avatar: post.profiles.avatar_url || `https://i.pravatar.cc/150?u=${post.author_id}`,
             startup: post.profiles.startup_name,
             traction_points: post.profiles.traction_points || 0,
+            location: post.profiles.location,
           }) : {
             name: 'Unknown User',
             username: 'unknown',
             avatar: 'https://i.pravatar.cc/150',
             startup: null,
             traction_points: 0,
+            location: null,
           }
         }));
         

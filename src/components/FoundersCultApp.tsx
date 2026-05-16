@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Masonry from 'react-masonry-css';
 import { supabase } from '@/lib/supabase/client';
 import { 
   Bell, Sun, Moon, Search, Hash, TrendingUp, Settings, 
   Heart, MessageSquare, Repeat2, Plus, X, MapPin, Link as LinkIcon, Camera, Loader2, File, Map,
-  ArrowBigUp, ArrowBigDown
+  ArrowBigUp, ArrowBigDown, Users, Rocket, User
 } from 'lucide-react';
 import { usePosts } from '@/lib/hooks/usePosts';
 import { useUserProfile, useCurrentUserProfile } from '@/lib/hooks/useUserProfile';
@@ -14,16 +15,18 @@ import { createPost } from '@/lib/actions/posts';
 
 // --- CONSTANTS ---
 const STREAMS = [
-  { id: 'all', label: 'Home' },
-  { id: 'ai-ml', label: 'ai-ml' },
-  { id: 'saas', label: 'saas' },
-  { id: 'dev-tools', label: 'dev-tools' },
-  { id: 'fundraising', label: 'fundraising' },
-  { id: 'design', label: 'design' },
-  { id: 'side-projects', label: 'side-projects' },
-  { id: 'hiring', label: 'hiring' },
-  { id: 'ship-it', label: 'ship-it' },
-  { id: 'open-source', label: 'open-source' },
+  { id: 'all', label: 'Global' },
+  { id: 'ai-ml', label: 'AI/ML' },
+  { id: 'cloud', label: 'Cloud' },
+  { id: 'saas', label: 'SaaS' },
+  { id: 'finance', label: 'Finance' },
+  { id: 'dev-tools', label: 'DevTools' },
+  { id: 'fundraising', label: 'Fundraising' },
+  { id: 'design', label: 'Design' },
+  { id: 'side-projects', label: 'Indie' },
+  { id: 'hiring', label: 'Hiring' },
+  { id: 'ship-it', label: 'Showcase' },
+  { id: 'open-source', label: 'OpenSource' },
 ];
 
 const TRENDING = [
@@ -46,8 +49,9 @@ export default function FoundersCultApp() {
     refetch: refetchCurrentUser 
   } = useCurrentUserProfile();
 
-  const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [activeStream, setActiveStream] = useState('all');
+  const [activeRegion, setActiveRegion] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<'none' | 'post' | 'profile' | 'circuit'>('none');
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -258,9 +262,17 @@ export default function FoundersCultApp() {
     return `${Math.floor(diff / 86400)}d ago`;
   };
 
-  const filteredPosts = posts.filter(post => 
-    activeStream === 'all' || post.stream_id === activeStream || (post.tags && post.tags.includes(activeStream))
-  );
+  const filteredPosts = posts.filter(post => {
+    // Check slug, tags, and even content for keywords if it's AI or Finance
+    const slugMatch = post.stream_slug === activeStream;
+    const tagMatch = post.tags && post.tags.includes(activeStream);
+    const contentMatch = (activeStream === 'ai-ml' && post.content.toLowerCase().includes('ai')) || 
+                        (activeStream === 'finance' && post.content.toLowerCase().includes('finance'));
+    
+    const matchesStream = activeStream === 'all' || slugMatch || tagMatch || contentMatch;
+    const matchesRegion = !activeRegion || post.author?.location === activeRegion;
+    return matchesStream && matchesRegion;
+  });
 
   const activePost = posts.find(p => p.id === selectedPostId);
   
@@ -292,244 +304,311 @@ export default function FoundersCultApp() {
   };
 
   return (
-    <div 
-      style={{ '--accent-amber': '#38bdf8', '--accent-gold': '#7dd3fc' } as React.CSSProperties}
-      className="flex h-screen w-full overflow-hidden bg-[var(--bg-base)] text-[var(--text-primary)] font-[family-name:var(--font-serif)] selection:bg-[var(--accent-amber)] selection:text-white relative"
-    >
+    <div className={`flex h-screen w-full overflow-hidden font-[family-name:var(--font-sans)] transition-colors duration-500 ${theme === 'dark' ? 'dark bg-[var(--bg-base)]' : 'bg-[var(--bg-base)]'}`}>
       
-      {/* ================= ZONE 1: LEFT CHANNEL PANEL ================= */}
-      <div className="w-16 md:w-64 flex-shrink-0 flex flex-col bg-[var(--bg-elevated-1)] border-r border-[var(--border-color)] z-10 transition-all duration-300">
+      {/* ================= ZONE 1: PREMIUM SIDEBAR ================= */}
+      <div className="hidden md:flex w-72 flex-shrink-0 flex-col bg-[var(--bg-base)]/50 backdrop-blur-xl border-r border-[var(--border-color)] z-10 transition-all duration-500 relative">
+        <div className="absolute inset-0 bg-noise opacity-[0.02] pointer-events-none"></div>
         
-        {/* Logo Area */}
-        <div className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-[var(--border-color)]">
-          <div className="flex items-baseline gap-1 hidden md:flex">
-            <span className="font-[family-name:var(--font-logo)] text-2xl text-[var(--text-primary)] tracking-wide">founders</span>
-            <span className="font-[family-name:var(--font-sans)] font-bold text-lg text-[var(--accent-amber)]">CULT</span>
-          </div>
-          <div className="md:hidden font-[family-name:var(--font-logo)] text-2xl text-[var(--accent-amber)]">fC</div>
-        </div>
-
-        {/* Navigation / Streams */}
-        <div className="flex-1 overflow-y-auto py-4 px-2 md:px-4 hide-scrollbar">
-          <div className="mb-6">
-            <h3 className="hidden md:block text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 px-2">Streams</h3>
-            <div className="space-y-1">
-              {STREAMS.map(stream => (
-                <button
-                  key={stream.id}
-                  onClick={() => setActiveStream(stream.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group ${
-                    activeStream === stream.id 
-                      ? 'bg-gradient-to-r from-[var(--accent-amber)] to-[var(--accent-gold)] text-white shadow-lg shadow-[var(--accent-amber)]/20 scale-[1.02]' 
-                      : 'hover:bg-[var(--bg-elevated-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  <Hash size={20} className={activeStream === stream.id ? 'text-white' : 'text-[var(--accent-amber)] group-hover:scale-110 transition-transform'} />
-                  <span className="hidden md:block text-sm font-bold tracking-tight">{stream.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="mb-6 hidden md:block">
-            <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 px-2 flex items-center gap-2">
-              <TrendingUp size={14} /> Trending
-            </h3>
-            <div className="space-y-2 px-2">
-              {TRENDING.map(trend => (
-                <button key={trend.tag} onClick={() => setActiveStream(trend.tag)} className="w-full text-left group">
-                  <div className="text-sm font-medium text-[var(--text-secondary)] group-hover:text-[var(--accent-amber)] transition-colors">#{trend.tag}</div>
-                  <div className="text-xs text-[var(--text-muted)]">{trend.count}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* User Footer */}
-        <div className="h-16 border-t border-[var(--border-color)] flex items-center justify-between px-2 md:px-4">
-          {userLoading ? (
-            <div className="flex items-center gap-3 p-2 w-full animate-pulse">
-              <div className="w-8 h-8 rounded-full bg-[var(--bg-elevated-2)]"></div>
-              <div className="hidden md:block h-4 w-24 bg-[var(--bg-elevated-2)] rounded"></div>
-            </div>
-          ) : currentUserId ? (
-            <button 
-              onClick={() => openProfile(currentUserId)}
-              className="flex items-center gap-3 hover:bg-[var(--bg-elevated-2)] p-2 rounded-md transition-colors w-full"
-            >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent-amber)] to-[var(--accent-gold)] text-white font-bold flex items-center justify-center overflow-hidden">
+        {/* Profile Header (Futuristic Club Aesthetic) */}
+        <div className="pt-12 pb-8 flex flex-col items-center px-6 relative">
+          <motion.div 
+            whileHover={{ scale: 1.05 }}
+            className="relative mb-6 cursor-pointer"
+            onClick={() => openProfile(currentUserId)}
+          >
+            <div className="w-24 h-24 rounded-[2.5rem] bg-gradient-to-tr from-[#7b2ff7] via-[#00e5ff] to-[#bef321] p-0.5 shadow-[0_0_30px_rgba(190,243,33,0.2)] group">
+              <div className="w-full h-full rounded-[2.4rem] bg-[var(--bg-base)] overflow-hidden flex items-center justify-center border border-[var(--border-color)]">
                 {currentUserProfile?.avatar_url ? (
                   <img src={currentUserProfile.avatar_url} className="w-full h-full object-cover" alt="" />
                 ) : (
-                  <span>{(currentUserProfile?.full_name || 'M').charAt(0)}</span>
+                  <span className="text-3xl font-black bg-gradient-to-br from-[var(--text-primary)] to-[var(--text-muted)] bg-clip-text text-transparent">
+                    {(currentUserProfile?.full_name || 'F').charAt(0)}
+                  </span>
                 )}
               </div>
-              <div className="hidden md:block text-left flex-1 min-w-0">
-                <div className="text-sm font-bold truncate">
-                  {currentUserProfile?.full_name || "My Profile"}
-                </div>
-                <div className="text-[10px] text-[var(--accent-amber)] font-bold uppercase tracking-wider flex items-center gap-1">
-                  <TrendingUp size={10} /> {myTractionPoints} Points
-                </div>
-              </div>
-              <Settings size={18} className="hidden md:block text-[var(--text-muted)]" />
-            </button>
-          ) : (
-            <a 
-              href="/auth/login"
-              className="flex items-center gap-3 hover:bg-[var(--bg-elevated-2)] p-2 rounded-md transition-colors w-full text-[var(--accent-amber)] font-bold"
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 border-4 border-[var(--bg-base)] rounded-full shadow-lg"></div>
+          </motion.div>
+          
+          <div className="flex flex-col items-center text-center">
+            <h2 className="text-xl font-black text-[var(--text-primary)] tracking-tight leading-tight mb-1">{currentUserProfile?.full_name || "Founder"}</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#bef321]/80">Alpha Member</span>
+              <div className="w-1 h-1 rounded-full bg-[var(--text-muted)]"></div>
+              <p className="text-xs text-[var(--text-secondary)] font-medium">@{currentUserProfile?.username || "founder"}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Menu (Linear-inspired) */}
+        <div className="flex-1 overflow-y-auto py-8 px-6 space-y-1">
+          {[
+            { id: 'all', label: 'Global Feed', icon: Hash },
+            { id: 'messages', label: 'Encrypted DM', icon: MessageSquare, badge: 2 },
+            { id: 'forums', label: 'Strategy Lab', icon: TrendingUp },
+            { id: 'friends', label: 'Builders Guild', icon: Users, badge: 3 },
+          ].map((item) => {
+            const isActive = activeStream === item.id;
+            return (
+              <motion.button
+                key={item.id}
+                whileHover={{ x: 4 }}
+                onClick={() => setActiveStream(item.id)}
+                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 relative group
+                  ${isActive 
+                    ? 'bg-[var(--bg-elevated-2)] text-[var(--text-primary)] shadow-[0_0_20px_rgba(255,255,255,0.02)]' 
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated-1)]'}`}
+              >
+                {isActive && (
+                  <motion.div 
+                    layoutId="sidebar-active"
+                    className="absolute left-0 w-1 h-6 bg-gradient-to-b from-[#bef321] to-[#7b2ff7] rounded-r-full"
+                  />
+                )}
+                <item.icon size={20} className={isActive ? 'text-[#bef321]' : 'group-hover:text-[var(--text-primary)] transition-colors'} />
+                <span className="text-sm font-bold tracking-tight">{item.label}</span>
+                {item.badge && (
+                  <span className="ml-auto flex h-5 px-1.5 items-center justify-center bg-[#bef321]/10 text-[#bef321] text-[9px] font-black rounded-lg border border-[#bef321]/30 shadow-[0_0_10px_rgba(190,243,33,0.1)]">
+                    {item.badge}
+                  </span>
+                )}
+              </motion.button>
+            );
+          })}
+          
+          <div className="mt-12 pt-8 border-t border-[var(--border-color)]">
+            <motion.button 
+              whileTap={{ scale: 0.98 }}
+              onClick={toggleTheme}
+              className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated-1)] group"
             >
-              <Plus size={20} />
-              <span className="hidden md:block">Sign In</span>
-            </a>
-          )}
+              <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--bg-elevated-1)] group-hover:bg-[var(--bg-elevated-2)] transition-colors border border-[var(--border-color)]">
+                {theme === 'dark' ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-slate-400" />}
+              </div>
+              <span className="font-bold text-xs tracking-widest uppercase">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+            </motion.button>
+          </div>
         </div>
       </div>
 
-      {/* ================= ZONE 2: MAIN CONTENT AREA ================= */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[var(--bg-base)] relative">
+      {/* ================= ZONE 2: PREMIUM FEED ================= */}
+      <div className="flex-1 flex flex-col min-w-0 bg-[var(--bg-base)] relative overflow-y-auto hide-scrollbar scroll-smooth">
+        <div className="absolute inset-0 bg-noise opacity-[0.02] pointer-events-none"></div>
         
-        {/* Top Bar */}
-        <div className="h-16 border-b border-[var(--border-color)] bg-[var(--bg-elevated-1)]/80 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-10">
-          <div className="flex items-center gap-3 md:gap-4 flex-1">
-            <h1 className="text-xl md:text-2xl font-[family-name:var(--font-logo)] font-black italic tracking-tighter bg-gradient-to-br from-[var(--accent-amber)] via-[var(--accent-gold)] to-[var(--accent-coral)] bg-clip-text text-transparent">
-              founders CULT
+        {/* Floating Futuristic Header */}
+        <div className="sticky top-0 z-40 bg-[var(--bg-base)]/80 backdrop-blur-xl border-b border-[var(--border-color)] pt-8 md:pt-12 pb-6 px-4 md:px-8 flex flex-col gap-6 transition-all">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl md:text-5xl font-black text-[var(--text-primary)] tracking-tighter" style={{ fontFamily: "'Fraunces', serif" }}>
+              {activeRegion ? `${activeRegion} Node` : 'Founders Cult'}
             </h1>
-            <div className="relative flex-1 max-w-md hidden sm:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search founders, ideas, or streams..." 
-                className="w-full bg-[var(--bg-elevated-1)] border border-[var(--border-color)] rounded-2xl py-2 pl-10 pr-4 text-sm outline-none focus:border-[var(--accent-amber)] focus:ring-4 focus:ring-[var(--accent-amber)]/10 transition-all"
-              />
+            
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setActivePanel('circuit')}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-[var(--bg-elevated-1)] border border-[var(--border-color)] hover:border-[#00e5ff]/40 transition-all group"
+              >
+                <div className="w-2 h-2 rounded-full bg-[#bef321] group-hover:animate-pulse"></div>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)]">Circuit</span>
+              </button>
+              
+              <div className="md:hidden">
+                <button 
+                  onClick={() => openProfile(currentUserId)}
+                  className="w-10 h-10 rounded-xl bg-[var(--bg-elevated-2)] border border-[var(--border-color)] overflow-hidden flex items-center justify-center text-[var(--text-primary)]"
+                >
+                  {currentUserProfile?.avatar_url ? (
+                    <img src={currentUserProfile.avatar_url} className="w-full h-full object-cover" alt="Profile" />
+                  ) : (
+                    <User size={18} />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
-
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setActivePanel('circuit')}
-              className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${
-                activePanel === 'circuit' 
-                  ? 'bg-[var(--accent-amber)] text-white' 
-                  : 'bg-[var(--bg-elevated-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-color)]'
-              }`}
-            >
-              <Map size={16} />
-              Founders Circuit
-            </button>
-            <button onClick={toggleTheme} className="text-[var(--text-secondary)] hover:text-[var(--accent-amber)] transition-colors">
-              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-            <button className="text-[var(--text-secondary)] hover:text-[var(--accent-amber)] transition-colors relative">
-              <Bell size={20} />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-[var(--accent-amber)] rounded-full"></span>
-            </button>
-          </div>
-        </div>
-
-        {/* Filter Pills */}
-        <div className="px-6 py-4 flex gap-3 overflow-x-auto hide-scrollbar border-b border-[var(--border-color)]">
-          {['Latest', 'Hot', 'Most Discussed', 'This Week'].map((filter, i) => (
-            <button key={filter} className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-              i === 0 ? 'bg-[var(--accent-amber)] text-white shadow-sm' : 'bg-[var(--bg-elevated-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-color)] hover:border-[var(--accent-amber)]/50'
-            }`}>
-              {filter}
-            </button>
-          ))}
-        </div>
-
-        {/* Loading State */}
-        {loading && posts.length === 0 && (
-          <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-muted)]">
-            <Loader2 size={32} className="animate-spin mb-4 text-[var(--accent-amber)]" />
-            <p className="font-[family-name:var(--font-sans)]">Syncing with database...</p>
-          </div>
-        )}
-
-        {/* Masonry Grid */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <Masonry
-            breakpointCols={breakpointColumnsObj}
-            className="flex w-auto -ml-4"
-            columnClassName="pl-4 bg-clip-padding"
-          >
-            {filteredPosts.map(post => {
-              const author = post.author;
+          
+          {/* Domain Navigation Header (Scrollable) */}
+          <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+            {STREAMS.map((stream) => {
+              const isActive = activeStream === stream.id;
               return (
-                <div 
-                  key={post.id} 
-                  onClick={() => openPost(post.id)}
-                  className="mb-4 bg-[var(--bg-elevated-1)] rounded-xl p-5 border border-[var(--border-color)] shadow-sm hover:shadow-md hover:border-[var(--accent-amber)]/50 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group"
-                >
-                  {/* Post Header */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <img 
-                      src={author?.avatar} 
-                      alt={author?.name} 
-                      className="w-10 h-10 rounded-full cursor-pointer hover:ring-2 hover:ring-[var(--accent-amber)] transition-all object-cover"
-                      onClick={(e) => { e.stopPropagation(); openProfile(post.author_id); }}
-                    />
-                    <div>
-                      <div className="flex items-center gap-1">
-                        <span className="font-bold text-sm text-[var(--text-primary)] group-hover:text-[var(--accent-amber)] transition-colors">{author?.name}</span>
-                      </div>
-                      <div className="text-xs text-[var(--text-muted)] font-[family-name:var(--font-sans)]">@{author?.username} · {formatTime(post.created_at)}</div>
-                    </div>
-                  </div>
-
-                  {/* Post Content */}
-                  <div className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4 whitespace-pre-wrap">
-                    {post.content.length > 200 ? post.content.substring(0, 200) + '...' : post.content}
-                    {post.content.length > 200 && <span className="text-[var(--accent-amber)] font-medium ml-1">read more</span>}
-                  </div>
-
-                  {/* Optional Image */}
-                  {post.media_urls && post.media_urls.length > 0 && (
-                    <div className="mb-4 rounded-lg overflow-hidden border border-[var(--border-color)]">
-                      <img src={post.media_urls[0]} alt="Post attachment" className="w-full h-auto object-cover" />
-                    </div>
-                  )}
-
-                  {/* Tags */}
-                  {(post.tags || (post.stream_id ? [post.stream_id] : [])).length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {(post.tags || (post.stream_id ? [post.stream_id] : [])).map((tag: string) => (
-                        <span key={tag} className="text-xs font-medium px-2 py-1 rounded-md bg-[var(--bg-elevated-2)] text-[var(--accent-teal)] border border-[var(--border-color)]">
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Footer Stats */}
-                  <div className="flex items-center gap-4 text-[var(--text-muted)] text-xs font-[family-name:var(--font-sans)] pt-2 border-t border-[var(--border-color)]">
-                    <div className="flex items-center gap-1 bg-[var(--bg-elevated-2)] rounded-full px-2 py-1">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleVote(post.id, 'up'); }}
-                        className={`p-1 hover:text-[var(--accent-amber)] transition-colors ${userVotes[post.id] === 'up' ? 'text-[var(--accent-amber)]' : ''}`}
-                      >
-                        <ArrowBigUp size={20} fill={userVotes[post.id] === 'up' ? 'currentColor' : 'none'} />
-                      </button>
-                      <span className="font-bold min-w-[1ch] text-center">
-                        {(post.likes_count || 0) + (userVotes[post.id] === 'up' ? 1 : userVotes[post.id] === 'down' ? -1 : 0)}
-                      </span>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleVote(post.id, 'down'); }}
-                        className={`p-1 hover:text-[var(--accent-coral)] transition-colors ${userVotes[post.id] === 'down' ? 'text-[var(--accent-coral)]' : ''}`}
-                      >
-                        <ArrowBigDown size={20} fill={userVotes[post.id] === 'down' ? 'currentColor' : 'none'} />
-                      </button>
-                    </div>
-                    <button className="flex items-center gap-1.5 hover:text-[var(--accent-blue)] transition-colors">
-                      <MessageSquare size={16} /> {post.comments_count}
-                    </button>
-                  </div>
-                </div>
+                  <button
+                    key={stream.id}
+                    onClick={() => setActiveStream(stream.id)}
+                    className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all border
+                      ${isActive 
+                        ? 'bg-neon-gradient text-white border-transparent shadow-[0_0_15px_rgba(190,243,33,0.3)]' 
+                        : 'bg-[var(--bg-elevated-1)] text-[var(--text-muted)] border-[var(--border-color)] hover:text-[var(--text-primary)] hover:border-neon-blue/30'}`}
+                  >
+                    {stream.label}
+                  </button>
               );
             })}
-          </Masonry>
+          </div>
         </div>
+
+
+        {/* Cinematic Feed Cards */}
+        <div className="px-8 space-y-12 pb-32">
+          {activeStream === 'messages' ? (
+            <div className="space-y-6">
+              {[
+                { name: 'Aryan Sharma', msg: 'Hey, saw your post about the multi-cloud migration. Would love to chat about the latency issues you faced.', time: '2m ago' },
+                { name: 'Ishani Iyer', msg: 'The Large Action Model research is fascinating! Are you open to a collab on the next phase?', time: '1h ago' },
+                { name: 'Rohan Malhotra', msg: 'Just checked out your Fintech API. The settlement speed is impressive. Let\'s talk partnership.', time: '3h ago' },
+              ].map((dm, i) => (
+                <motion.div 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  key={i}
+                  className="bg-[var(--bg-elevated-1)] p-6 rounded-[2rem] border border-[var(--border-color)] flex items-center justify-between hover:border-purple-500/30 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-neon-gradient/20 flex items-center justify-center text-[#bef321] font-black">
+                      {dm.name.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="font-black text-[var(--text-primary)] text-sm">{dm.name}</h4>
+                      <p className="text-xs text-[var(--text-muted)] line-clamp-1">{dm.msg}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-black text-[#00e5ff] uppercase tracking-widest">{dm.time}</span>
+                </motion.div>
+              ))}
+            </div>
+          ) : activeStream === 'forums' ? (
+            <div className="space-y-8">
+              <div className="bg-neon-gradient/5 p-8 rounded-[3rem] border border-[#bef321]/20 mb-12">
+                <h2 className="text-2xl font-black text-neon-gradient mb-2 tracking-tight">Strategy Lab</h2>
+                <p className="text-sm text-[var(--text-secondary)]">High-signal tactics, market deep-dives, and growth playbooks from the top 1%.</p>
+              </div>
+              
+              {[
+                { title: 'The 2026 SaaS GTM Playbook', author: 'Vikram Singh', reads: '1.2k', signal: 'High' },
+                { title: 'Mastering Multi-Cloud Latency for AI Agents', author: 'Aryan Sharma', reads: '850', signal: 'Critical' },
+                { title: 'Decoding the Indian Fintech Regulatory Maze', author: 'Rohan Malhotra', reads: '2.1k', signal: 'Verified' },
+              ].map((lab, i) => (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  key={i}
+                  className="bg-[var(--bg-elevated-1)] p-8 rounded-[2.5rem] border border-[var(--border-color)] hover:border-[#00e5ff]/30 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-[10px] font-black bg-[#bef321]/20 text-[#bef321] px-3 py-1 rounded-full border border-[#bef321]/20 uppercase tracking-widest">
+                      {lab.signal} Signal
+                    </span>
+                    <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">{lab.reads} Founders Reading</span>
+                  </div>
+                  <h3 className="text-xl font-black text-[var(--text-primary)] mb-4 group-hover:text-neon-gradient transition-colors">{lab.title}</h3>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[var(--text-secondary)] font-bold">Analysis by {lab.author}</span>
+                    <button className="text-xs font-black uppercase tracking-[0.2em] text-[#00e5ff] group-hover:underline">Enter Lab</button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : filteredPosts.map((post, idx) => {
+            const author = post.author;
+            const hasVote = userVotes[post.id];
+            
+            return (
+              <motion.div 
+                layout
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                key={post.id}
+                onClick={() => openPost(post.id)}
+                className="group relative bg-[var(--bg-elevated-1)] rounded-[3rem] border border-[var(--border-color)] overflow-hidden cursor-pointer hover:border-purple-500/30 transition-all duration-700 shadow-2xl"
+              >
+                {/* Cinematic Media Section */}
+                {post.media_urls && post.media_urls[0] && (
+                  <div className="relative h-[450px] w-full overflow-hidden">
+                    <img 
+                      src={post.media_urls[0]} 
+                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                      alt="Post Media"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-elevated-1)] via-transparent to-transparent"></div>
+                    
+                    {/* Hover Overlay Intelligence */}
+                    <div className="absolute inset-0 bg-purple-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 flex items-center justify-center backdrop-blur-[2px]">
+                      <div className="px-8 py-3 bg-[var(--bg-base)]/80 rounded-full border border-white/20 text-xs font-black uppercase tracking-[0.4em] text-[var(--text-primary)]">
+                        Analyze Signal
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="p-10 relative">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                      <img 
+                        src={post.author?.avatar} 
+                        className="w-14 h-14 rounded-2xl ring-1 ring-[var(--border-color)] shadow-xl object-cover" 
+                        alt={post.author?.name} 
+                      />
+                      <div>
+                        <h3 className="font-black text-lg text-[var(--text-primary)] tracking-tight leading-tight">{post.author?.name}</h3>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">@{post.author?.username}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[10px] font-black text-[#bef321] bg-[#bef321]/10 px-3 py-1 rounded-full border border-[#bef321]/20 uppercase tracking-widest">
+                        {formatTime(post.created_at)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-[17px] text-[var(--text-secondary)] leading-[1.6] mb-10 font-medium whitespace-pre-wrap">
+                    {post.content}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-8 border-t border-[var(--border-color)]">
+                    <div className="flex items-center gap-8">
+                      <div className="flex items-center gap-3 bg-[var(--bg-elevated-2)] p-1 rounded-2xl border border-[var(--border-color)]">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleVote(post.id, 'up'); }}
+                          className={`p-2 rounded-xl transition-all ${userVotes[post.id] === 'up' ? 'text-[#bef321] bg-[#bef321]/10' : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated-3)]'}`}
+                        >
+                          <ArrowBigUp size={24} fill={userVotes[post.id] === 'up' ? 'currentColor' : 'none'} />
+                        </button>
+                        <span className="font-black text-[var(--text-primary)] text-lg">
+                          {(post.likes_count || 0) + (userVotes[post.id] === 'up' ? 1 : userVotes[post.id] === 'down' ? -1 : 0)}
+                        </span>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleVote(post.id, 'down'); }}
+                          className={`p-2 rounded-xl transition-all ${userVotes[post.id] === 'down' ? 'text-rose-400 bg-rose-500/10' : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated-3)]'}`}
+                        >
+                          <ArrowBigDown size={24} fill={userVotes[post.id] === 'down' ? 'currentColor' : 'none'} />
+                        </button>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em]">
+                        <MessageSquare size={16} /> {post.comments_count} Signals
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="flex -space-x-3">
+                        {[1,2,3].map(i => (
+                          <div key={i} className="w-8 h-8 rounded-xl border-2 border-[var(--bg-base)] bg-[var(--bg-elevated-3)] flex items-center justify-center text-[10px] font-black text-[var(--text-primary)]">
+                            {String.fromCharCode(64+i)}
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-tighter ml-2">+12 Others</span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
 
         {/* Floating Action Button */}
         <button 
@@ -539,280 +618,410 @@ export default function FoundersCultApp() {
           <Plus size={32} className="group-hover:rotate-90 transition-transform duration-500" />
         </button>
 
-      </div>
 
-      {/* ================= ZONE 3: RIGHT CONTEXT PANEL ================= */}
+      {/* ================= ZONE 3: PREMIUM NEXUS PANEL ================= */}
       <div 
-        className={`flex-shrink-0 bg-[var(--bg-elevated-1)] border-l border-[var(--border-color)] transition-all duration-300 ease-in-out z-20 overflow-hidden shadow-2xl md:shadow-none
-          ${activePanel !== 'none' ? 'w-full absolute md:relative md:w-[400px] xl:w-[500px]' : 'w-0 border-transparent'} h-full right-0 top-0`}
+        className={`flex-shrink-0 bg-[var(--bg-base)]/80 backdrop-blur-3xl border-l border-[var(--border-color)] transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] z-20 overflow-hidden shadow-2xl md:shadow-none relative
+          ${activePanel !== 'none' ? 'w-full absolute md:relative md:w-[380px] xl:w-[450px]' : 'w-0 border-transparent'} h-full right-0 top-0 overflow-y-auto hide-scrollbar`}
       >
-        <div className="w-full md:w-[400px] xl:w-[500px] h-full flex flex-col">
-          {/* Header */}
-          <div className="h-16 flex items-center justify-between px-6 border-b border-[var(--border-color)] bg-[var(--bg-elevated-1)] sticky top-0 z-10">
-            <span className="font-bold text-lg text-[var(--text-primary)]">
-              {activePanel === 'post' ? 'Thread' : activePanel === 'profile' ? 'Profile' : activePanel === 'circuit' ? 'Founders Circuit' : ''}
-            </span>
-            <button onClick={closePanel} className="p-2 hover:bg-[var(--bg-elevated-2)] rounded-full text-[var(--text-secondary)] transition-colors">
+        <div className="absolute inset-0 bg-noise opacity-[0.02] pointer-events-none"></div>
+
+        {activePanel !== 'none' && (
+          <div className="sticky top-0 z-30 flex items-center justify-between p-8 bg-[var(--bg-base)]/40 backdrop-blur-md border-b border-[var(--border-color)]">
+            <div className="flex flex-col">
+              <span className="font-black text-[10px] uppercase tracking-[0.4em] text-[var(--text-muted)] mb-1">Nexus Node</span>
+              <span className="font-black text-sm uppercase tracking-widest text-[var(--text-primary)]">
+                {activePanel === 'circuit' ? 'Circuit Map' : activePanel === 'post' ? 'Intelligence Thread' : 'Founder Profile'}
+              </span>
+            </div>
+            <motion.button 
+              whileHover={{ rotate: 90, scale: 1.1 }}
+              onClick={closePanel} 
+              className="p-3 hover:bg-[var(--bg-elevated-1)] rounded-2xl transition-all text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-[var(--border-color)]"
+            >
               <X size={20} />
-            </button>
+            </motion.button>
           </div>
+        )}
 
-          <div className="flex-1 overflow-y-auto">
-            {activePanel === 'circuit' && (
-              <div className="p-6 space-y-8">
-                <div className="bg-gradient-to-br from-[var(--accent-amber)]/20 to-transparent p-6 rounded-2xl border border-[var(--accent-amber)]/20 mb-6">
-                  <h3 className="text-2xl font-bold mb-2">Local Chapters</h3>
-                  <p className="text-sm text-[var(--text-secondary)]">Connect with founders in your city and attend exclusive IRL events.</p>
+        <div className="p-8 space-y-12 relative z-10">
+          {activePanel === 'circuit' ? (
+            <div className="space-y-12">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-[#0a0510] p-8 rounded-[2.5rem] border border-[#bef321]/30 relative overflow-hidden group shadow-[0_20px_50px_rgba(190,243,33,0.1)]"
+              >
+                <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                  <Rocket size={48} className="text-[#00e5ff]" />
                 </div>
+                <h3 className="text-xl font-black text-[var(--text-primary)] mb-2 tracking-tight">Active Nodes</h3>
+                <p className="text-xs text-[#bef321] font-bold uppercase tracking-widest">Connect with regional founders</p>
+              </motion.div>
 
-                {[
-                  {
-                    city: "Bangalore Chapter",
-                    events: [
-                      { name: "SaaS Founders Mixer", date: "Oct 25, 6:00 PM", venue: "Indiranagar" },
-                      { name: "Demo Day: AI Tools", date: "Nov 02, 11:00 AM", venue: "HSR Layout" }
-                    ]
-                  },
-                  {
-                    city: "Mumbai Chapter",
-                    events: [
-                      { name: "Fintech Circle Meetup", date: "Oct 28, 7:00 PM", venue: "BKC" },
-                      { name: "Investor Speed Dating", date: "Nov 05, 4:00 PM", venue: "Worli" }
-                    ]
-                  },
-                  {
-                    city: "Chennai Chapter",
-                    events: [
-                      { name: "D2C Brands Workshop", date: "Oct 30, 5:30 PM", venue: "Adyar" },
-                      { name: "Late Night Code & Coffee", date: "Nov 08, 9:00 PM", venue: "OMR" }
-                    ]
-                  },
-                  {
-                    city: "Hyderabad Chapter",
-                    events: [
-                      { name: "Web3 Builders Meet", date: "Nov 01, 6:30 PM", venue: "Gachibowli" },
-                      { name: "Founder's Breakfast", date: "Nov 12, 9:00 AM", venue: "Jubilee Hills" }
-                    ]
-                  }
-                ].map((chapter) => (
-                  <div key={chapter.city} className="space-y-4">
-                    <div className="flex items-center gap-2 text-lg font-bold text-[var(--accent-amber)]">
-                      <MapPin size={20} />
-                      {chapter.city}
-                    </div>
-                    <div className="grid gap-3">
-                      {chapter.events.map((event) => (
-                        <div key={event.name} className="p-4 bg-[var(--bg-elevated-2)] rounded-xl border border-[var(--border-color)] hover:border-[var(--accent-amber)]/50 transition-all cursor-pointer group">
-                          <div className="font-bold text-[var(--text-primary)] group-hover:text-[var(--accent-amber)] transition-colors">{event.name}</div>
-                          <div className="flex justify-between mt-2 text-xs text-[var(--text-muted)] font-[family-name:var(--font-sans)]">
-                            <span>{event.date}</span>
-                            <span>{event.venue}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+              {/* Live Circuit Visualization */}
+              <div className="relative h-48 bg-[var(--bg-elevated-1)] rounded-[2.5rem] border border-[var(--border-color)] overflow-hidden p-6 flex items-center justify-center">
+                <svg width="100%" height="100%" viewBox="0 0 400 200" className="opacity-40">
+                  <defs>
+                    <filter id="glow">
+                      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                      <feMerge>
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
+                    </filter>
+                  </defs>
+                  
+                  {/* Circuit Lines */}
+                  <path d="M 50,100 L 150,100 L 200,50 L 300,50 L 350,100" stroke="var(--text-muted)" strokeWidth="1" fill="none" opacity="0.3" />
+                  <path d="M 150,100 L 200,150 L 300,150 L 350,100" stroke="var(--text-muted)" strokeWidth="1" fill="none" opacity="0.3" />
+                  
+                  {/* Nodes */}
+                  {[
+                    { x: 50, y: 100, label: 'BLR', active: activeRegion === 'Bangalore' },
+                    { x: 200, y: 50, label: 'HYD', active: activeRegion === 'Hyderabad' },
+                    { x: 200, y: 150, label: 'MAA', active: activeRegion === 'Chennai' },
+                    { x: 350, y: 100, label: 'BOM', active: activeRegion === 'Mumbai' }
+                  ].map((node, idx) => (
+                    <g key={idx}>
+                      <motion.circle 
+                        cx={node.x} cy={node.y} r={node.active ? 6 : 4} 
+                        fill={node.active ? '#bef321' : 'var(--text-muted)'}
+                        filter={node.active ? 'url(#glow)' : ''}
+                        animate={node.active ? { r: [6, 10, 6], opacity: [1, 0.5, 1] } : {}}
+                        transition={{ repeat: Infinity, duration: 2 }}
+                      />
+                      <text x={node.x} y={node.y + 20} textAnchor="middle" fontSize="10" fontWeight="bold" fill="var(--text-muted)" className="uppercase tracking-widest">{node.label}</text>
+                    </g>
+                  ))}
+                </svg>
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--bg-elevated-1)]"></div>
               </div>
-            )}
+
+              {[
+                { name: 'Bangalore', members: 420, active: true, color: 'bg-emerald-400' },
+                { name: 'Chennai', members: 215, active: false, color: 'bg-blue-400' },
+                { name: 'Hyderabad', members: 180, active: true, color: 'bg-cyan-400' },
+                { name: 'Mumbai', members: 310, active: true, color: 'bg-lime-400' },
+              ].map((chapter, i) => (
+                <motion.div 
+                  key={chapter.name} 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setActiveRegion(activeRegion === chapter.name ? null : chapter.name);
+                    // if (window.innerWidth < 768) closePanel();
+                  }}
+                  className={`group cursor-pointer relative p-4 rounded-3xl border transition-all ${
+                    activeRegion === chapter.name 
+                      ? 'bg-neon-gradient/10 border-[#bef321]/50 shadow-[0_0_20px_rgba(190,243,33,0.15)]' 
+                      : 'bg-[var(--bg-elevated-1)] border-[var(--border-color)] hover:border-[#bef321]/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full ${chapter.color} ${chapter.active ? 'animate-pulse shadow-[0_0_10px_currentColor]' : 'opacity-20'}`}></div>
+                      <h4 className="text-lg font-black text-[var(--text-primary)] group-hover:text-purple-400 transition-colors tracking-tight">{chapter.name}</h4>
+                    </div>
+                    <span className="text-[10px] font-black bg-[var(--bg-elevated-2)] text-[var(--text-muted)] px-3 py-1.5 rounded-xl border border-[var(--border-color)] uppercase tracking-widest">{chapter.members} Founders</span>
+                  </div>
+                  <div className="space-y-3 pl-5 border-l border-[var(--border-color)] ml-1">
+                    {['Strategic SaaS Gathering', 'Indie Network Sync'].map(event => (
+                      <div key={event} className="flex items-center gap-4 p-4 bg-[var(--bg-elevated-1)] rounded-2xl border border-[var(--border-color)] hover:bg-[var(--bg-elevated-2)] hover:border-purple-500/20 transition-all">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]"></div>
+                        <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest group-hover:text-[var(--text-secondary)] transition-colors">{event}</span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : activePanel === 'none' ? (
+            <div className="space-y-12">
+              {/* Suggestions Section */}
+              <section>
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-xs font-black text-[var(--text-muted)] uppercase tracking-[0.4em]">Suggested Connections</h3>
+                  <button className="text-[10px] font-black text-purple-400 uppercase tracking-widest hover:text-purple-300">View All</button>
+                </div>
+                <div className="space-y-4">
+                  {[
+                    { name: 'Nick Shelburne', username: 'nickshel', avatar: 'NS', color: 'bg-blue-500' },
+                    { name: 'Sarah Drasner', username: 'sdras', avatar: 'SD', color: 'bg-purple-500' }
+                  ].map((user) => (
+                    <motion.div 
+                      key={user.username} 
+                      whileHover={{ x: 5 }}
+                      className="flex items-center justify-between p-4 bg-[var(--bg-elevated-1)] rounded-3xl border border-[var(--border-color)] hover:bg-[var(--bg-elevated-2)] transition-all"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl ${user.color} flex items-center justify-center font-black text-white shadow-xl`}>
+                          {user.avatar}
+                        </div>
+                        <div>
+                          <div className="font-black text-sm text-[var(--text-primary)]">{user.name}</div>
+                          <div className="text-[10px] text-[var(--text-muted)] font-bold tracking-tight">@{user.username}</div>
+                        </div>
+                      </div>
+                      <button className="px-5 py-2 bg-[var(--text-primary)] text-[var(--bg-base)] text-[10px] font-black rounded-full uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all">Follow</button>
+                    </motion.div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Discovery Guilds */}
+              <section>
+                <h3 className="text-xs font-black text-[var(--text-muted)] uppercase tracking-[0.4em] mb-8">Founders Cult Hubs</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: 'AI/ML', icon: '🤖', count: '1.2k' },
+                    { label: 'SaaS', icon: '☁️', count: '850' },
+                    { label: 'DevOps', icon: '⚡', count: '430' },
+                    { label: 'Design', icon: '🎨', count: '310' }
+                  ].map((cat) => (
+                    <div key={cat.label} className="p-6 bg-[var(--bg-elevated-1)] rounded-[2rem] border border-[var(--border-color)] hover:border-purple-500/30 hover:bg-purple-500/5 transition-all cursor-pointer group flex flex-col items-center text-center">
+                      <div className="text-3xl mb-3 group-hover:scale-125 transition-transform duration-500">{cat.icon}</div>
+                      <span className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-widest mb-1">{cat.label}</span>
+                      <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-tighter">{cat.count} Active</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          ) : null}
+        </div>
             {activePanel === 'post' && activePost && (
-              <div className="p-6">
-                {/* Full Post */}
-                <div className="mb-6">
-                  <div className="flex items-center gap-3 mb-4">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-10"
+              >
+                {/* Main Node Post */}
+                <div className="relative">
+                  <div className="flex items-center gap-4 mb-6">
                     <img 
                       src={activePost.author?.avatar} 
                       alt="Author" 
-                      className="w-12 h-12 rounded-full cursor-pointer hover:ring-2 ring-[var(--accent-amber)] transition-all object-cover"
+                      className="w-14 h-14 rounded-2xl cursor-pointer ring-1 ring-[var(--border-color)] shadow-2xl object-cover"
                       onClick={() => openProfile(activePost.author_id)}
                     />
                     <div>
-                      <div className="font-bold text-base text-[var(--text-primary)]">{activePost.author?.name}</div>
-                      <div className="text-sm text-[var(--text-muted)] font-[family-name:var(--font-sans)]">@{activePost.author?.username}</div>
+                      <h4 className="font-black text-lg text-[var(--text-primary)] leading-tight">{activePost.author?.name}</h4>
+                      <div className="text-xs text-[var(--text-muted)] font-black uppercase tracking-widest">@{activePost.author?.username}</div>
+                    </div>
+                    <div className="ml-auto text-[9px] font-black text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/20 uppercase tracking-widest">
+                      {formatTime(activePost.created_at)}
                     </div>
                   </div>
                   
-                  <div className="text-base text-[var(--text-primary)] leading-relaxed mb-6 whitespace-pre-wrap">
+                  <div className="text-[17px] font-medium text-[var(--text-primary)] leading-[1.6] mb-8 whitespace-pre-wrap">
                     {activePost.content}
                   </div>
 
                   {activePost.media_urls && activePost.media_urls.length > 0 && (
-                    <div className="mb-6 rounded-xl overflow-hidden border border-[var(--border-color)]">
-                      <img src={activePost.media_urls[0]} alt="Attachment" className="w-full h-auto object-cover" />
+                    <div className="mb-8 rounded-[2rem] overflow-hidden border border-[var(--border-color)] shadow-2xl group">
+                      <img src={activePost.media_urls[0]} alt="Attachment" className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-700" />
                     </div>
                   )}
 
-                  <div className="flex items-center gap-6 text-[var(--text-secondary)] text-sm font-[family-name:var(--font-sans)] py-4 border-y border-[var(--border-color)] mb-6">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-8 py-6 border-y border-[var(--border-color)] mb-8">
+                    <div className="flex items-center gap-3 bg-[var(--bg-elevated-1)] p-1 rounded-2xl border border-[var(--border-color)]">
                       <button 
                         onClick={() => handleVote(activePost.id, 'up')}
-                        className={`p-1 rounded hover:bg-[var(--bg-elevated-2)] ${userVotes[activePost.id] === 'up' ? 'text-[var(--accent-amber)]' : ''}`}
+                        className={`p-2 rounded-xl transition-all ${userVotes[activePost.id] === 'up' ? 'text-purple-400 bg-purple-500/10' : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated-2)]'}`}
                       >
                         <ArrowBigUp size={24} fill={userVotes[activePost.id] === 'up' ? 'currentColor' : 'none'} />
                       </button>
-                      <span className="font-bold text-lg">
+                      <span className="font-black text-[var(--text-primary)] text-lg">
                         {(activePost.likes_count || 0) + (userVotes[activePost.id] === 'up' ? 1 : userVotes[activePost.id] === 'down' ? -1 : 0)}
                       </span>
                       <button 
                         onClick={() => handleVote(activePost.id, 'down')}
-                        className={`p-1 rounded hover:bg-[var(--bg-elevated-2)] ${userVotes[activePost.id] === 'down' ? 'text-[var(--accent-coral)]' : ''}`}
+                        className={`p-2 rounded-xl transition-all ${userVotes[activePost.id] === 'down' ? 'text-rose-400 bg-rose-500/10' : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated-2)]'}`}
                       >
                         <ArrowBigDown size={24} fill={userVotes[activePost.id] === 'down' ? 'currentColor' : 'none'} />
                       </button>
                     </div>
-                    <span className="flex items-center gap-2"><MessageSquare size={18} className="text-[var(--text-muted)]"/> {activePost.comments_count} Replies</span>
+                    <div className="flex items-center gap-2 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em]">
+                      <MessageSquare size={16} /> {activePost.comments_count} Active Signals
+                    </div>
                   </div>
                 </div>
 
-                {/* Reply Composer */}
-                <div className="flex flex-col gap-3 mb-8">
+                {/* Glassmorphic Reply Input */}
+                <div className="relative p-6 bg-[var(--bg-elevated-1)] rounded-[2.5rem] border border-[var(--border-color)] shadow-inner focus-within:border-purple-500/30 transition-all">
                   {feedbackPrompt && (
-                    <div className="text-xs font-bold text-[var(--accent-coral)] uppercase tracking-wide flex items-center gap-2 animate-bounce">
-                      <ArrowBigDown size={14} fill="currentColor" /> {feedbackPrompt}
-                    </div>
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></div>
+                      Feedback Optimization Required: {feedbackPrompt}
+                    </motion.div>
                   )}
-                  <div className="flex gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[var(--accent-amber)] text-white flex items-center justify-center font-bold text-sm">Me</div>
-                    <div className="flex-1 bg-[var(--bg-elevated-2)] border border-[var(--border-color)] rounded-xl p-3 focus-within:border-[var(--accent-amber)] transition-colors">
+                  <div className="flex gap-4">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 p-[1px] flex-shrink-0">
+                      <div className="w-full h-full rounded-[0.9rem] bg-[var(--bg-base)] flex items-center justify-center font-black text-[10px] text-[var(--text-primary)]">Me</div>
+                    </div>
+                    <div className="flex-1">
                       <textarea 
                         ref={replyInputRef}
-                        placeholder={feedbackPrompt ? "What could be improved?" : "Post a reply..."} 
-                        className="w-full bg-transparent resize-none outline-none text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] font-[family-name:var(--font-sans)]"
+                        placeholder={feedbackPrompt ? "Provide constructive intelligence..." : "Broadcast your signal..."} 
+                        className="w-full bg-transparent resize-none outline-none text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] font-medium"
                         rows={2}
                       ></textarea>
-                      <div className="flex justify-between items-center mt-2">
-                        <button className="text-[var(--accent-teal)] hover:bg-[var(--accent-teal)]/10 p-1.5 rounded-md transition-colors"><Camera size={18}/></button>
-                        <button 
+                      <div className="flex justify-between items-center mt-4">
+                        <button className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-2 hover:bg-[var(--bg-elevated-2)] rounded-xl"><Camera size={18}/></button>
+                        <motion.button 
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() => setFeedbackPrompt(null)}
-                          className="bg-[var(--accent-amber)] hover:bg-[var(--accent-gold)] text-white text-sm font-medium px-4 py-1.5 rounded-full transition-colors"
+                          className="bg-[var(--text-primary)] text-[var(--bg-base)] text-[10px] font-black px-6 py-2 rounded-full uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all shadow-xl"
                         >
-                          {feedbackPrompt ? 'Send Feedback' : 'Reply'}
-                        </button>
+                          {feedbackPrompt ? 'Send Intelligence' : 'Signal'}
+                        </motion.button>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Dummy Replies */}
-                <div className="space-y-6">
-                  <h4 className="text-sm font-bold text-[var(--text-muted)] uppercase tracking-wider mb-4">Replies</h4>
-                  {activePost.comments_count === 0 && <p className="text-[var(--text-muted)] text-sm italic">No replies yet. Be the first to comment!</p>}
+                {/* Threaded Activity */}
+                <div className="space-y-8">
+                  <div className="flex items-center gap-4">
+                    <div className="h-[1px] flex-1 bg-[var(--border-color)]"></div>
+                    <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.4em]">Historical Signals</span>
+                    <div className="h-[1px] flex-1 bg-[var(--border-color)]"></div>
+                  </div>
+                  {activePost.comments_count === 0 && (
+                    <div className="text-center py-10">
+                      <p className="text-[var(--text-muted)] text-[10px] font-black uppercase tracking-widest">No signals detected in this sector.</p>
+                    </div>
+                  )}
                 </div>
-              </div>
+              </motion.div>
             )}
-
-            {activePanel === 'profile' && !activeProfile && (
-              <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-                {profileLoading ? (
-                  <>
-                    <Loader2 size={32} className="animate-spin mb-4 text-[var(--accent-amber)]" />
-                    <p className="text-[var(--text-muted)] text-sm">Syncing profile data...</p>
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp size={48} className="text-[var(--border-color)] mb-4" />
-                    <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">Profile Not Found</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-6">
-                      {currentUserId ? "We couldn't find details for this user." : "Please sign in to view your profile details."}
-                    </p>
-                    {!currentUserId && (
-                      <a href="/auth/login" className="bg-[var(--accent-amber)] text-white px-6 py-2 rounded-full font-bold transition-all hover:bg-[var(--accent-gold)]">
-                        Sign In
-                      </a>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-
-            {activePanel === 'profile' && activeProfile && (
-              <div className="pb-8">
-                {/* Hero Cover */}
-                <div className="h-40 w-full relative">
-                  <img src={activeProfile.coverImage} className="w-full h-full object-cover" alt="Cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-elevated-1)] to-transparent"></div>
+                  {activePanel === 'profile' && activeProfile && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-12 pb-20"
+              >
+                {/* Hero Header */}
+                <div className="relative h-64 rounded-[3rem] overflow-hidden border border-[var(--border-color)] group">
+                  <img src={activeProfile.coverImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt="Cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-base)] via-[var(--bg-base)]/20 to-transparent"></div>
+                  
+                  <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between">
+                    <div className="flex items-center gap-6">
+                      <motion.img 
+                        whileHover={{ scale: 1.05 }}
+                        src={activeProfile.avatar} 
+                        className="w-28 h-28 rounded-[2.5rem] border-4 border-[var(--bg-base)] shadow-2xl object-cover bg-[var(--bg-base)]" 
+                        alt="Avatar" 
+                      />
+                      <div className="mb-2">
+                        <h2 className="text-3xl font-black text-[var(--text-primary)] tracking-tighter mb-1">{activeProfile.name}</h2>
+                        <span className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em]">@{activeProfile.handle.replace('@', '')}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
-                {/* Profile Info */}
-                <div className="px-6 relative -top-12">
-                  <div className="flex justify-between items-end mb-4">
-                    <img src={activeProfile.avatar} className="w-24 h-24 rounded-full border-4 border-[var(--bg-elevated-1)] object-cover bg-[var(--bg-base)]" alt="Avatar" />
+                {/* Profile Controls & Stats */}
+                <div className="px-4 space-y-8">
+                  <div className="flex items-center gap-4">
                     {activeProfile.id === currentUserId ? (
                       <button 
                         onClick={() => setIsEditModalOpen(true)}
-                        className="w-full mt-4 bg-[var(--bg-elevated-2)] text-[var(--text-primary)] hover:bg-[var(--bg-elevated-3)] px-6 py-2.5 rounded-xl font-bold text-sm transition-all border border-[var(--border-color)] flex items-center justify-center gap-2 shadow-sm"
+                        className="flex-1 bg-[var(--text-primary)] text-[var(--bg-base)] hover:bg-purple-500 hover:text-white px-8 py-3 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3"
                       >
                         <Settings size={16} />
-                        Edit Profile
+                        Sync Profile
                       </button>
                     ) : (
                       <button 
                         onClick={() => activeProfile.id && toggleFollow(activeProfile.id)}
-                        className={`px-6 py-2 rounded-full font-bold text-sm transition-all shadow-sm ${
-                          activeProfile.isFollowing 
-                            ? 'bg-[var(--bg-elevated-2)] text-[var(--text-primary)] border border-[var(--border-color)]' 
-                            : 'bg-[var(--text-primary)] text-[var(--bg-base)] hover:bg-[var(--accent-amber)] hover:text-white'
-                        }`}
+                        className={`flex-1 px-8 py-3 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest transition-all shadow-2xl
+                          ${activeProfile.isFollowing 
+                            ? 'bg-[var(--bg-elevated-1)] text-[var(--text-secondary)] border border-[var(--border-color)]' 
+                            : 'bg-[var(--text-primary)] text-[var(--bg-base)] hover:bg-purple-500 hover:text-white'}`}
                       >
-                        {activeProfile.isFollowing ? 'Following' : 'Follow'}
+                        {activeProfile.isFollowing ? 'Node Connected' : 'Connect Node'}
                       </button>
                     )}
-                  </div>
-                  
-                  <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-1">{activeProfile.name}</h2>
-                  <div className="text-sm text-[var(--text-muted)] font-[family-name:var(--font-sans)] mb-4">{activeProfile.handle}</div>
-                  
-                  <p className="text-[var(--text-secondary)] text-sm mb-4 leading-relaxed">{activeProfile.bio}</p>
-                  
-                  <div className="flex flex-wrap gap-4 text-xs text-[var(--text-muted)] font-[family-name:var(--font-sans)] mb-6">
-                    <span className="flex items-center gap-1.5"><MapPin size={14}/> {activeProfile.location}</span>
-                    <span className="flex items-center gap-1.5 text-[var(--accent-teal)] hover:underline cursor-pointer"><LinkIcon size={14}/> {activeProfile.website}</span>
-                  </div>
-                  
-                  <div className="flex gap-4 text-sm font-[family-name:var(--font-sans)] border-b border-[var(--border-color)] pb-6 mb-2">
-                    <span className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{activeProfile.traction_points}</strong> Traction Points</span>
-                    <span className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{activeProfile.following}</strong> Following</span>
-                    <span className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{activeProfile.followers}</strong> Followers</span>
+                    <button className="w-14 h-14 rounded-[1.5rem] bg-[var(--bg-elevated-1)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated-2)] border border-[var(--border-color)] transition-all">
+                      <LinkIcon size={20} />
+                    </button>
                   </div>
 
-                  {/* Profile Tabs */}
-                  <div className="flex gap-6 border-b border-[var(--border-color)] mb-4">
-                    {['Posts', 'Replies', 'Likes', 'Media'].map((tab, i) => (
-                      <button key={tab} className={`pb-3 text-sm font-medium transition-colors border-b-2 ${i === 0 ? 'text-[var(--text-primary)] border-[var(--accent-amber)]' : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-secondary)]'}`}>
-                        {tab}
-                      </button>
+                  {/* High-End Stats Grid */}
+                  <div className="grid grid-cols-3 gap-1 p-1 bg-[var(--bg-elevated-1)] rounded-[2.5rem] border border-[var(--border-color)] overflow-hidden">
+                    {[
+                      { label: 'Traction', value: (activeProfile.traction_points || 0) + 1250, color: 'text-purple-400' },
+                      { label: 'Following', value: activeProfile.following, color: 'text-blue-400' },
+                      { label: 'Followers', value: activeProfile.followers, color: 'text-cyan-400' }
+                    ].map(stat => (
+                      <div key={stat.label} className="bg-[var(--bg-base)] py-6 px-4 flex flex-col items-center justify-center text-center">
+                        <span className={`text-xl font-black ${stat.color} mb-1`}>{stat.value}</span>
+                        <span className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em]">{stat.label}</span>
+                      </div>
                     ))}
                   </div>
+                  
+                  {/* Bio */}
+                  <div className="bg-[var(--bg-elevated-1)] p-8 rounded-[2.5rem] border border-[var(--border-color)] relative group overflow-hidden">
+                    <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                      <Rocket size={48} className="text-[var(--text-primary)]" />
+                    </div>
+                    <div className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.4em] mb-4">Founder Intelligence</div>
+                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed font-medium">
+                      {activeProfile.bio || "No intelligence data broadcasted yet. This founder is operating in stealth."}
+                    </p>
+                  </div>
+                                {/* Profile Tabs & Posts */}
+                  <div className="px-4 space-y-8">
+                    <div className="flex gap-6 border-b border-[var(--border-color)] mb-4">
+                      {['Posts', 'Replies', 'Likes', 'Media'].map((tab, i) => (
+                        <button key={tab} className={`pb-3 text-sm font-black uppercase tracking-widest transition-all border-b-2 ${i === 0 ? 'text-[var(--text-primary)] border-purple-500' : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-secondary)]'}`}>
+                          {tab}
+                        </button>
+                      ))}
+                    </div>
 
-                  {/* Profile Posts */}
-                  <div className="space-y-4">
-                    {profilePostsLoading ? (
-                      <div className="flex justify-center py-8">
-                        <Loader2 size={24} className="animate-spin text-[var(--accent-amber)]" />
-                      </div>
-                    ) : (
-                      <>
-                        {profilePosts.map(post => (
-                          <div key={post.id} className="p-4 bg-[var(--bg-elevated-2)] rounded-xl border border-[var(--border-color)] cursor-pointer hover:border-[var(--accent-amber)]/50 transition-colors" onClick={() => openPost(post.id)}>
-                            <div className="text-sm text-[var(--text-secondary)] mb-3">{post.content.length > 100 ? post.content.substring(0, 100) + '...' : post.content}</div>
-                            <div className="flex gap-4 text-xs text-[var(--text-muted)] font-[family-name:var(--font-sans)]">
-                              <span className="flex items-center gap-1"><Heart size={12}/> {post.likes_count}</span>
-                              <span className="flex items-center gap-1"><MessageSquare size={12}/> {post.comments_count}</span>
+                    <div className="space-y-4">
+                      {profilePostsLoading ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 size={24} className="animate-spin text-purple-400" />
+                        </div>
+                      ) : (
+                        <>
+                          {profilePosts.map(post => (
+                            <div key={post.id} className="p-6 bg-[var(--bg-elevated-1)] rounded-[2rem] border border-[var(--border-color)] cursor-pointer hover:border-purple-500/30 transition-all" onClick={() => openPost(post.id)}>
+                              <div className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">{post.content.length > 150 ? post.content.substring(0, 150) + '...' : post.content}</div>
+                              <div className="flex gap-6 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">
+                                <span className="flex items-center gap-2"><Heart size={14}/> {post.likes_count} Signals</span>
+                                <span className="flex items-center gap-2"><MessageSquare size={14}/> {post.comments_count} Intelligence</span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                        {profilePosts.length === 0 && (
-                          <div className="text-center text-[var(--text-muted)] py-8 text-sm">No posts yet.</div>
-                        )}
-                      </>
-                    )}
+                          ))}
+                          {profilePosts.length === 0 && (
+                            <div className="text-center py-12">
+                              <p className="text-[var(--text-muted)] text-[10px] font-black uppercase tracking-widest">No transmissions found.</p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )}
           </div>
-        </div>
-      </div>
+
 
       {/* ================= MODAL: COMPOSE POST ================= */}
       {isComposeOpen && (
@@ -978,6 +1187,37 @@ export default function FoundersCultApp() {
           </div>
         </div>
       )}
+      {/* ================= ZONE 4: MOBILE BOTTOM NAV ================= */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-[var(--bg-base)]/80 backdrop-blur-2xl border-t border-[var(--border-color)] z-50 flex items-center justify-around px-4 pb-4">
+        {[
+          { id: 'all', label: 'Feed', icon: Hash },
+          { id: 'messages', label: 'DMs', icon: MessageSquare, badge: 2 },
+          { id: 'forums', label: 'Lab', icon: TrendingUp },
+          { id: 'profile', label: 'You', icon: User },
+        ].map((item) => {
+          const isActive = (item.id === 'profile' && activePanel === 'profile') || (item.id !== 'profile' && activeStream === item.id && activePanel === 'feed');
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                if (item.id === 'profile') {
+                  openProfile(currentUserId);
+                } else {
+                  setActiveStream(item.id);
+                  setActivePanel('feed');
+                }
+              }}
+              className={`flex flex-col items-center gap-1 transition-all ${isActive ? 'text-[#bef321]' : 'text-[var(--text-muted)]'}`}
+            >
+              <item.icon size={20} className={isActive ? 'drop-shadow-[0_0_8px_rgba(190,243,33,0.5)]' : ''} />
+              <span className="text-[10px] font-black uppercase tracking-tighter">{item.label}</span>
+              {isActive && (
+                <motion.div layoutId="mobile-nav-dot" className="w-1 h-1 rounded-full bg-[#bef321]" />
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

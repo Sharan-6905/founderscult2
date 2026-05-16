@@ -1,9 +1,10 @@
 import LandingPage from "@/components/LandingPage";
 
-export default function Home({
+export default async function Home({
   searchParams,
 }: {
-  searchParams: { error?: string; message?: string };
+  searchParams: Promise<{ error?: string; message?: string }>;
 }) {
-  return <LandingPage error={searchParams?.error} message={searchParams?.message} />;
+  const params = await searchParams;
+  return <LandingPage error={params?.error} message={params?.message} />;
 }

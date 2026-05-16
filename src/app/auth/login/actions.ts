@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
@@ -35,7 +36,6 @@ export async function login(formData: FormData) {
       // 3. Auto-confirm using Service Role if available
       if (process.env.SUPABASE_SERVICE_ROLE_KEY && data.user) {
         try {
-          const { createClient: createAdminClient } = await import('@supabase/supabase-js');
           const adminAuthClient = createAdminClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -47,6 +47,7 @@ export async function login(formData: FormData) {
             user_metadata: { email_verified: true } 
           });
 
+          // Final sign in to get the session
           await supabase.auth.signInWithPassword({ email, password });
         } catch (err) {
           console.error('Admin confirm error:', err)
@@ -81,7 +82,6 @@ export async function signup(formData: FormData) {
   // Auto-confirm using Service Role if available
   if (process.env.SUPABASE_SERVICE_ROLE_KEY && data.user) {
     try {
-      const { createClient: createAdminClient } = await import('@supabase/supabase-js');
       const adminAuthClient = createAdminClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -109,3 +109,4 @@ export async function signOut() {
   revalidatePath('/', 'layout')
   redirect('/')
 }
+

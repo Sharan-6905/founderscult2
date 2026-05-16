@@ -2,13 +2,14 @@ import { login, signup } from './actions'
 import { Hexagon } from 'lucide-react'
 import Link from 'next/link'
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string; message?: string };
+  searchParams: Promise<{ error?: string; message?: string }>;
 }) {
-  const error = searchParams?.error;
-  const message = searchParams?.message;
+  const params = await searchParams;
+  const error = params?.error;
+  const message = params?.message;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-base)] p-4">
@@ -16,10 +17,10 @@ export default function LoginPage({
         <div className="p-8">
           <div className="flex justify-center mb-6">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[var(--color-accent-amber)] to-[var(--color-accent-gold)] flex items-center justify-center text-white shadow-lg">
-              <span className="font-serif font-bold text-2xl font-[family-name:var(--font-logo)]">f</span>
+              <span className="font-bold text-3xl font-[family-name:var(--font-logo)] italic">f</span>
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-center text-[var(--color-text-primary)] mb-2">Join FoundersCult</h2>
+          <h2 className="text-3xl font-medium text-center text-[var(--color-text-primary)] mb-2 font-[family-name:var(--font-logo)]">Join FoundersCult</h2>
           <p className="text-center text-[var(--color-text-muted)] text-sm mb-6">
             Connect with founders and build your ideas.
           </p>
