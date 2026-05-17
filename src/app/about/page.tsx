@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 export default function AboutPage() {
   return (
-    <div className="bg-[var(--bg-base)] text-[var(--text-primary)] min-h-screen selection:bg-[var(--accent-amber)] selection:text-white overflow-x-hidden relative">
+    <div className="bg-[var(--bg-base)] text-[var(--text-primary)] font-sans min-h-screen selection:bg-[var(--text-primary)] selection:text-[var(--bg-base)] overflow-x-hidden relative">
       <div className="absolute inset-0 bg-noise opacity-[0.02] pointer-events-none"></div>
       
       {/* HEADER */}
@@ -16,7 +16,7 @@ export default function AboutPage() {
           <Link href="/">
             <motion.button 
               whileHover={{ x: -4 }}
-              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] hover:text-[#bef321] transition-colors"
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
             >
               <ArrowLeft size={14} />
               Home
@@ -27,7 +27,7 @@ export default function AboutPage() {
 
       {/* STORYTELLING SECTION */}
       <section className="relative px-6 py-32 md:py-64 max-w-5xl mx-auto space-y-48">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#7b2ff7]/5 to-transparent pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--text-primary)]/5 to-transparent pointer-events-none"></div>
         
         <motion.div 
           initial={{ opacity: 0, y: 50 }}
@@ -37,23 +37,23 @@ export default function AboutPage() {
         >
           {/* Stats in Whitespace */}
           <div className="hidden lg:block absolute -left-48 top-0 text-left space-y-2 opacity-40">
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#bef321]">Node Count</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">Node Count</p>
             <p className="text-2xl font-black">420</p>
             <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-tighter">Verified Builders</p>
           </div>
           
           <div className="hidden lg:block absolute -right-48 bottom-0 text-right space-y-2 opacity-40">
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#00e5ff]">Capital Signal</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">Capital Signal</p>
             <p className="text-2xl font-black">₹1.5 Cr+</p>
             <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-tighter">Collective Velocity</p>
           </div>
 
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#bef321]">Our Story</span>
-          <h1 className="text-5xl md:text-8xl font-black tracking-tight leading-[1.1] font-[family-name:var(--font-serif)]" style={{ fontFamily: "'Fraunces', serif" }}>
+          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--text-primary)]">Our Story</span>
+          <h1 className="text-5xl md:text-8xl font-medium tracking-tight leading-[1.1] font-[family-name:var(--font-serif)]">
             Startups were never meant <br />
-            <span className="text-[var(--text-muted)]">to be built alone.</span>
+            <span className="italic text-[var(--text-secondary)]">to be built alone.</span>
           </h1>
-          <div className="w-px h-24 bg-gradient-to-b from-[#bef321] to-transparent"></div>
+          <div className="w-px h-24 bg-gradient-to-b from-[var(--text-primary)] to-transparent opacity-20"></div>
         </motion.div>
 
         <motion.div 
@@ -100,9 +100,9 @@ export default function AboutPage() {
           viewport={{ once: true }}
           className="pt-48 text-center"
         >
-          <h3 className="text-3xl md:text-5xl font-black tracking-tight text-[var(--text-primary)]" style={{ fontFamily: "'Fraunces', serif" }}>
+          <h3 className="text-3xl md:text-5xl font-medium tracking-tight text-[var(--text-primary)] font-[family-name:var(--font-serif)]">
             The arena is yours. <br />
-            <span className="text-[#00e5ff]">The cult is waiting.</span>
+            <span className="italic text-[var(--text-secondary)]">The cult is waiting.</span>
           </h3>
           
           <div className="mt-24">
@@ -110,7 +110,7 @@ export default function AboutPage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="bg-[#bef321] text-black font-black px-12 py-5 rounded-full text-sm uppercase tracking-widest hover:shadow-[0_0_30px_rgba(190,243,33,0.3)] transition-all"
+                className="bg-transparent border border-[var(--border-color)] text-[var(--text-primary)] font-black px-12 py-5 rounded-full text-xs uppercase tracking-widest hover:bg-[var(--text-primary)] hover:text-[var(--bg-base)] transition-all"
               >
                 Join the Network
               </motion.button>
