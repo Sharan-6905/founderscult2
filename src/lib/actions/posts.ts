@@ -102,3 +102,48 @@ export async function createPost(content: string, slug: string = 'all', media_ur
     return { error: err.message || 'An unexpected error occurred' };
   }
 }
+
+export async function votePost(postId: string, type: 'up' | 'down') {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: 'Auth required' };
+
+    // Update the post count
+    const { data: post } = await supabase.from('posts').select('likes_count').eq('id', postId).single();
+    if (!post) return { error: 'Post not found' };
+
+    const newCount = type === 'up' ? (post.likes_count || 0) + 1 : (post.likes_count || 0) - 1;
+
+    await supabase.from('posts').update({ likes_count: newCount }).eq('id', postId);
+    
+    // We could also store individual votes in a votes table to prevent double voting
+    // For now we keep it simple as requested
+    
+    revalidatePath('/feed');
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
+export async function submitFeedback(postId: string, suggestion: string) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: 'Auth required' };
+
+    const { error } = await supabase.from('post_feedback').insert({
+      post_id: postId,
+      user_id: user.id,
+      suggestion: suggestion.trim()
+    });
+
+    if (error) throw error;
+
+    revalidatePath('/feed');
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}

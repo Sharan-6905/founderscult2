@@ -24,13 +24,18 @@ export function useUserProfile(userId: string | null) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [prevUserId, setPrevUserId] = useState<string | null>(userId);
 
-  useEffect(() => {
+  // Reset profile if userId changes to null
+  if (userId !== prevUserId) {
+    setPrevUserId(userId);
     if (!userId) {
       setProfile(null);
-      return;
     }
+  }
 
+  useEffect(() => {
+    if (!userId) return;
     fetchProfile();
   }, [userId]);
 

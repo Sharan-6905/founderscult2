@@ -21,6 +21,13 @@ export function ThemeProvider({
   const [theme, setTheme] = useState<Theme>(defaultTheme);
   const [mounted, setMounted] = useState(false);
 
+  const applyTheme = (newTheme: Theme) => {
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(newTheme);
+    localStorage.setItem("theme", newTheme);
+  };
+
   useEffect(() => {
     setMounted(true);
     const savedTheme = localStorage.getItem("theme") as Theme | null;
@@ -31,13 +38,6 @@ export function ThemeProvider({
       applyTheme(defaultTheme);
     }
   }, [defaultTheme]);
-
-  const applyTheme = (newTheme: Theme) => {
-    const root = document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(newTheme);
-    localStorage.setItem("theme", newTheme);
-  };
 
   const handleSetTheme = (newTheme: Theme) => {
     setTheme(newTheme);

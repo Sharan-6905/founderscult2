@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -34,14 +34,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protect certain routes if the user is not logged in
-  // For now, let's just make sure the session is refreshed.
-  // Example for protection:
-  // if (!user && request.nextUrl.pathname.startsWith('/protected')) {
-  //   const url = request.nextUrl.clone()
-  //   url.pathname = '/auth/login'
-  //   return NextResponse.redirect(url)
-  // }
+  // user is not used here but kept for refreshing the session via getUser()
+  void user;
 
   return supabaseResponse
 }
