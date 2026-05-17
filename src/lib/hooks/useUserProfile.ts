@@ -129,6 +129,11 @@ export function useCurrentUserProfile() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserId(session?.user.id || null);
+      if (session?.user) {
+        setAuthUser(session.user);
+      } else {
+        setAuthUser(null);
+      }
     });
 
     return () => subscription.unsubscribe();

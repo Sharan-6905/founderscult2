@@ -326,7 +326,10 @@ export default function FoundersCultApp() {
           <span className="font-sans font-black uppercase tracking-[0.1em] text-[0.7em] ml-1">Cult</span>
         </div>
         <button 
-          onClick={() => setActivePanel('profile')}
+          onClick={() => {
+            setActivePanel('profile');
+            setSelectedProfileId(currentUserId);
+          }}
           className="w-10 h-10 rounded-full overflow-hidden border border-[var(--border-color)]"
         >
           {currentUserProfile?.avatar_url || authUser?.user_metadata?.avatar_url ? (
