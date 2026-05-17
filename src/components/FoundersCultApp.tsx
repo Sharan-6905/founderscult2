@@ -393,7 +393,7 @@ export default function FoundersCultApp() {
         <nav className="flex-1 px-4 py-8 space-y-1">
           {[
             { id: 'all', label: 'Global Feed', icon: Globe, emoji: '🌍' },
-            { id: 'messages', label: 'Encrypted DM', icon: Lock, badge: 2, emoji: '🔒' },
+            { id: 'messages', label: 'Private DMs', icon: Lock, badge: 2, emoji: '🔒' },
             { id: 'forums', label: 'Strategy Lab', icon: Zap, emoji: '⚡' },
             { id: 'friends', label: 'Builders Guild', icon: Shield, badge: 3, emoji: '🛡️' },
           ].map((item) => {
