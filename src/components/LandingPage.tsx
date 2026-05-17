@@ -158,6 +158,23 @@ export default function LandingPage({ error: initialError, message }: { error?: 
               <div className={`w-12 h-1 rounded-full transition-all duration-700 ${step === 1 ? 'bg-[var(--text-primary)] w-24' : 'bg-[var(--border-color)]'}`}></div>
               <div className={`w-12 h-1 rounded-full transition-all duration-700 ${step === 2 ? 'bg-[var(--text-primary)] w-24' : 'bg-[var(--border-color)]'}`}></div>
             </div>
+
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ ...cinematicTransition, delay: 0.5 }}
+              className="pt-24 max-w-sm"
+            >
+              <div className="text-4xl text-[var(--text-muted)] font-[family-name:var(--font-serif)] leading-none mb-2">"</div>
+              <p className="text-lg md:text-xl text-[var(--text-secondary)] italic font-[family-name:var(--font-serif)] leading-relaxed">
+                If you want to walk fast, walk alone.
+                <br />
+                But if you want to walk far, walk together.
+              </p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mt-6">
+                — Ratan Tata
+              </p>
+            </motion.div>
           </div>
 
           <div className="w-full max-w-lg ml-auto bg-[var(--bg-base)] border border-[var(--border-color)] rounded-[3rem] p-10 md:p-16 shadow-2xl relative overflow-hidden">
