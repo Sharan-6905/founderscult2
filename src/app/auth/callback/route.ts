@@ -18,8 +18,9 @@ export async function GET(request: Request) {
     }
     
     console.error('OAuth Error:', error.message)
+    return NextResponse.redirect(`${origin}/?error=${encodeURIComponent(error.message)}`)
   }
 
   // Return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/?error=Authentication%20failed`)
+  return NextResponse.redirect(`${origin}/?error=NoCodeProvided`)
 }
