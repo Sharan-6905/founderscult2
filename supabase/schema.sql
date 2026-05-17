@@ -1,6 +1,6 @@
 -- FoundersCult DB Schema
 -- RESET (Run this to clear old tables first)
-DROP TABLE IF EXISTS public.posts, public.comments, public.likes, public.follows, public.notifications, public.streams, public.profiles CASCADE;
+DROP TABLE IF EXISTS public.messages, public.conversation_participants, public.conversations, public.posts, public.comments, public.likes, public.follows, public.notifications, public.streams, public.profiles CASCADE;
 
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -90,6 +90,31 @@ CREATE TABLE IF NOT EXISTS public.notifications (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- CONVERSATIONS
+CREATE TABLE IF NOT EXISTS public.conversations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- CONVERSATION PARTICIPANTS
+CREATE TABLE IF NOT EXISTS public.conversation_participants (
+    conversation_id UUID REFERENCES public.conversations(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY(conversation_id, user_id)
+);
+
+-- MESSAGES
+CREATE TABLE IF NOT EXISTS public.messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conversation_id UUID REFERENCES public.conversations(id) ON DELETE CASCADE,
+    sender_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    read_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.streams ENABLE ROW LEVEL SECURITY;
@@ -98,6 +123,9 @@ ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.follows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.conversation_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
 
@@ -135,6 +163,15 @@ CREATE POLICY "Users can delete own follows." ON public.follows FOR DELETE USING
 CREATE POLICY "Users can view own notifications." ON public.notifications FOR SELECT USING (auth.uid() = recipient_id);
 CREATE POLICY "Users can update own notifications." ON public.notifications FOR UPDATE USING (auth.uid() = recipient_id);
 
+-- CONVERSATIONS & MESSAGES
+CREATE POLICY "Users can view their conversations" ON public.conversations FOR SELECT USING (EXISTS (SELECT 1 FROM public.conversation_participants WHERE conversation_id = id AND user_id = auth.uid()));
+CREATE POLICY "Users can insert conversations" ON public.conversations FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Users can view participants of their conversations" ON public.conversation_participants FOR SELECT USING (EXISTS (SELECT 1 FROM public.conversation_participants AS cp WHERE cp.conversation_id = conversation_id AND cp.user_id = auth.uid()));
+CREATE POLICY "Users can insert participants" ON public.conversation_participants FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Users can view messages in their conversations" ON public.messages FOR SELECT USING (EXISTS (SELECT 1 FROM public.conversation_participants WHERE conversation_id = messages.conversation_id AND user_id = auth.uid()));
+CREATE POLICY "Users can insert messages in their conversations" ON public.messages FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.conversation_participants WHERE conversation_id = messages.conversation_id AND user_id = auth.uid()) AND auth.uid() = sender_id);
+CREATE POLICY "Users can update read_at for messages in their conversations" ON public.messages FOR UPDATE USING (EXISTS (SELECT 1 FROM public.conversation_participants WHERE conversation_id = messages.conversation_id AND user_id = auth.uid()));
+
 -- Functions and Triggers
 
 -- Trigger to create profile after user signup
@@ -162,3 +199,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE posts;
 ALTER PUBLICATION supabase_realtime ADD TABLE comments;
 ALTER PUBLICATION supabase_realtime ADD TABLE likes;
 ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+ALTER PUBLICATION supabase_realtime ADD TABLE messages;

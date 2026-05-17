@@ -12,6 +12,8 @@ import { usePosts } from '@/lib/hooks/usePosts';
 import { useUserProfile, useCurrentUserProfile } from '@/lib/hooks/useUserProfile';
 import { createPost, votePost, submitFeedback } from '@/lib/actions/posts';
 import { signOut } from '@/app/auth/login/actions';
+import { useConversations, useChatMessages } from '@/lib/hooks/useMessages';
+import { getOrCreateConversation, sendMessage } from '@/lib/actions/messages';
 
 // --- CONSTANTS ---
 const STREAMS = [
@@ -46,9 +48,12 @@ export default function FoundersCultApp() {
 
   const [activeStream, setActiveStream] = useState('all');
   const [activeRegion, setActiveRegion] = useState<string | null>(null);
-  const [activePanel, setActivePanel] = useState<'none' | 'post' | 'profile' | 'circuit'>('none');
+  const [activePanel, setActivePanel] = useState<'none' | 'post' | 'profile' | 'circuit' | 'messages'>('none');
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [messageText, setMessageText] = useState('');
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [userVotes, setUserVotes] = useState<Record<string, 'up' | 'down' | null>>({});
   const [feedbackPrompt, setFeedbackPrompt] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -151,7 +156,38 @@ export default function FoundersCultApp() {
     setTimeout(() => {
       setSelectedPostId(null);
       setSelectedProfileId(null);
+      setSelectedConversationId(null);
     }, 300);
+  };
+
+  // Messaging Hooks & Handlers
+  const { conversations, loading: convsLoading, refetch: refetchConvs } = useConversations(currentUserId);
+  const { messages, loading: msgsLoading } = useChatMessages(selectedConversationId);
+
+  const handleInitiateChat = async (targetUserId: string) => {
+    if (!currentUserId) return;
+    const res = await getOrCreateConversation(targetUserId);
+    if (res.error) {
+      alert(res.error);
+      return;
+    }
+    if (res.conversationId) {
+      setSelectedConversationId(res.conversationId);
+      setActivePanel('messages');
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!selectedConversationId || !messageText.trim()) return;
+    setIsSendingMessage(true);
+    const res = await sendMessage(selectedConversationId, messageText);
+    if (res.error) {
+      alert(res.error);
+    } else {
+      setMessageText('');
+      refetchConvs();
+    }
+    setIsSendingMessage(false);
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -393,15 +429,23 @@ export default function FoundersCultApp() {
         <nav className="flex-1 px-4 py-8 space-y-1">
           {[
             { id: 'all', label: 'Global Feed', icon: Globe, emoji: '🌍' },
-            { id: 'messages', label: 'Private DMs', icon: Lock, badge: 2, emoji: '🔒' },
+            { id: 'messages', label: 'Private DMs', icon: Lock, badge: conversations.length > 0 ? conversations.length : undefined, emoji: '🔒' },
             { id: 'forums', label: 'Strategy Lab', icon: Zap, emoji: '⚡' },
             { id: 'friends', label: 'Builders Guild', icon: Shield, badge: 3, emoji: '🛡️' },
           ].map((item) => {
-            const isActive = activeStream === item.id;
+            const isActive = item.id === 'messages' ? activePanel === 'messages' : activeStream === item.id && activePanel !== 'messages';
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveStream(item.id)}
+                onClick={() => {
+                  if (item.id === 'messages') {
+                    setActivePanel('messages');
+                    setSelectedConversationId(null); // Show inbox
+                  } else {
+                    setActiveStream(item.id);
+                    if (activePanel === 'messages') setActivePanel('none');
+                  }
+                }}
                 className={`w-full flex items-center gap-4 px-6 py-3.5 rounded-2xl transition-all duration-500 relative group
                   ${isActive 
                     ? 'bg-[var(--bg-elevated-1)] text-[var(--text-primary)]' 
@@ -603,7 +647,7 @@ export default function FoundersCultApp() {
               <div className="flex flex-col">
                 <span className="text-[9px] font-black uppercase tracking-[0.4em] text-[var(--text-muted)] mb-1">Nexus Node</span>
                 <span className="text-xs font-bold uppercase tracking-widest">
-                  {activePanel === 'circuit' ? 'Circuit Map' : activePanel === 'post' ? 'Intelligence' : 'Profile'}
+                  {activePanel === 'circuit' ? 'Circuit Map' : activePanel === 'post' ? 'Intelligence' : activePanel === 'messages' ? (selectedConversationId ? 'Secure Comm-Link' : 'Private Inbox') : 'Profile'}
                 </span>
               </div>
               <button 
@@ -776,8 +820,11 @@ export default function FoundersCultApp() {
                           <Settings size={18} />
                         </button>
                       ) : (
-                        <button className="bg-[var(--text-primary)] text-[var(--bg-base)] px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:opacity-80 transition-all">
-                          Connect
+                        <button 
+                          onClick={() => handleInitiateChat(activeProfile.id)}
+                          className="bg-[var(--text-primary)] text-[var(--bg-base)] px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:opacity-80 transition-all flex items-center gap-2"
+                        >
+                          <MessageSquare size={14} /> Message
                         </button>
                       )}
                     </div>
@@ -816,6 +863,132 @@ export default function FoundersCultApp() {
                       ))}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {activePanel === 'messages' && (
+                <div className="space-y-6 pb-20 h-full flex flex-col">
+                  {!selectedConversationId ? (
+                    // Inbox View
+                    <div className="space-y-4 flex-1">
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-bold tracking-tight">Active Comm-Links</h3>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{conversations.length} Threads</span>
+                      </div>
+
+                      {convsLoading ? (
+                        <div className="flex items-center justify-center py-12">
+                          <Loader2 className="animate-spin text-[var(--text-primary)]" size={24} />
+                        </div>
+                      ) : conversations.length === 0 ? (
+                        <div className="p-8 text-center bg-[var(--bg-elevated-1)] rounded-2xl border border-[var(--border-color)] text-[var(--text-muted)] text-xs">
+                          No secure comm-links established yet. Visit a founder's profile to initiate a private transmission.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {conversations.map(conv => (
+                            <button
+                              key={conv.id}
+                              onClick={() => setSelectedConversationId(conv.id)}
+                              className="w-full p-4 bg-[var(--bg-elevated-1)] rounded-2xl border border-[var(--border-color)] hover:border-[var(--text-primary)]/40 transition-all flex items-center gap-4 text-left group"
+                            >
+                              <img src={conv.other_user?.avatar} className="w-12 h-12 rounded-full object-cover grayscale group-hover:grayscale-0 transition-all border border-[var(--border-color)]" alt="" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-1">
+                                  <h4 className="font-bold text-xs tracking-tight truncate">{conv.other_user?.name}</h4>
+                                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+                                    {conv.last_message ? formatTime(conv.last_message.created_at) : ''}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-[var(--text-secondary)] truncate font-light">
+                                  {conv.last_message?.content || 'No messages yet...'}
+                                </p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Chat Thread View
+                    <div className="flex-1 flex flex-col h-full min-h-[400px]">
+                      <div className="flex items-center gap-4 pb-6 border-b border-[var(--border-color)]">
+                        <button 
+                          onClick={() => setSelectedConversationId(null)}
+                          className="p-2 hover:bg-[var(--bg-elevated-1)] rounded-xl transition-all text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                        >
+                          <X size={16} className="rotate-45" />
+                        </button>
+                        {(() => {
+                          const curConv = conversations.find(c => c.id === selectedConversationId);
+                          return (
+                            <div className="flex items-center gap-3">
+                              <img src={curConv?.other_user?.avatar} className="w-8 h-8 rounded-full object-cover grayscale border border-[var(--border-color)]" alt="" />
+                              <div>
+                                <h4 className="font-bold text-xs tracking-tight">{curConv?.other_user?.name}</h4>
+                                <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">@{curConv?.other_user?.username}</p>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Messages Container */}
+                      <div className="flex-1 overflow-y-auto py-6 space-y-4 pr-2 hide-scrollbar flex flex-col justify-end">
+                        {msgsLoading ? (
+                          <div className="flex items-center justify-center py-12 my-auto">
+                            <Loader2 className="animate-spin text-[var(--text-primary)]" size={24} />
+                          </div>
+                        ) : messages.length === 0 ? (
+                          <div className="text-center text-xs text-[var(--text-muted)] my-auto py-12 font-light italic">
+                            Comm-link established. Broadcast your first encrypted transmission below.
+                          </div>
+                        ) : (
+                          <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 hide-scrollbar">
+                            {messages.map(msg => {
+                              const isMe = msg.sender_id === currentUserId;
+                              return (
+                                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                  <div className={`max-w-[80%] p-4 rounded-2xl text-xs leading-relaxed font-light ${isMe ? 'bg-[var(--text-primary)] text-[var(--bg-base)] rounded-br-sm font-medium' : 'bg-[var(--bg-elevated-1)] border border-[var(--border-color)] rounded-bl-sm'}`}>
+                                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                                    <span className={`block text-[8px] font-black uppercase tracking-widest mt-2 text-right ${isMe ? 'text-[var(--bg-base)]/70' : 'text-[var(--text-muted)]'}`}>
+                                      {formatTime(msg.created_at)}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Message Input */}
+                      <div className="pt-4 border-t border-[var(--border-color)] mt-auto">
+                        <div className="flex items-end gap-2 p-2 bg-[var(--bg-elevated-1)] rounded-2xl border border-[var(--border-color)] focus-within:border-[var(--text-primary)]/40 transition-all">
+                          <textarea
+                            value={messageText}
+                            onChange={(e) => setMessageText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                              }
+                            }}
+                            placeholder="Type secure transmission..."
+                            className="flex-1 bg-transparent resize-none outline-none text-xs p-2 text-[var(--text-primary)] placeholder-[var(--text-muted)] font-medium max-h-32 min-h-8"
+                            rows={1}
+                          />
+                          <button
+                            disabled={isSendingMessage || !messageText.trim()}
+                            onClick={handleSendMessage}
+                            className="p-3 bg-[var(--text-primary)] text-[var(--bg-base)] rounded-xl hover:opacity-80 transition-all disabled:opacity-50 flex items-center justify-center"
+                          >
+                            {isSendingMessage ? <Loader2 className="animate-spin" size={16} /> : <Rocket size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
