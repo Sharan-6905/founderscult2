@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, Loader2, ArrowLeft, Check } from 'lucide-react';
 import Link from 'next/link';
-import { login, signInWithGoogle } from '@/app/auth/login/actions';
+import { login } from '@/app/auth/login/actions';
+import { supabase } from '@/lib/supabase/client';
 
 const LinkedinIcon = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -252,7 +253,14 @@ export default function LandingPage({ error: initialError, message }: { error?: 
 
                   <button 
                     type="button" 
-                    onClick={() => signInWithGoogle()}
+                    onClick={async () => {
+                      await supabase.auth.signInWithOAuth({
+                        provider: 'google',
+                        options: {
+                          redirectTo: `${window.location.origin}/auth/callback`,
+                        },
+                      })
+                    }}
                     className="w-full flex items-center justify-center gap-4 py-4 border border-[var(--border-color)] rounded-2xl hover:border-[var(--text-primary)] transition-all bg-[var(--bg-elevated-1)] hover:bg-[var(--bg-elevated-2)] group shadow-sm"
                   >
                     <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg" className="group-hover:scale-110 transition-transform duration-300">
