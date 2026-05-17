@@ -457,7 +457,7 @@ export default function FoundersCultApp() {
           </div>
         </header>
 
-        <div className="p-8 space-y-12 max-w-4xl mx-auto w-full pb-32">
+        <div className="p-4 md:p-8 space-y-8 md:space-y-12 max-w-4xl mx-auto w-full pb-32">
           {filteredPosts.map((post, idx) => (
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
@@ -472,14 +472,14 @@ export default function FoundersCultApp() {
                 <div className="relative aspect-video overflow-hidden">
                   <img 
                     src={post.media_urls[0]} 
-                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
+                    className="w-full h-full object-cover object-center transition-transform duration-1000 group-hover:scale-105" 
                     alt=""
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-elevated-1)] via-transparent to-transparent opacity-60"></div>
                 </div>
               )}
               
-              <div className="p-8">
+              <div className="p-5 md:p-8">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-4">
                     <img 
