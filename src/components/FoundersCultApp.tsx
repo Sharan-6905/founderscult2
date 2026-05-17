@@ -26,9 +26,23 @@ export default function FoundersCultApp() {
   const { 
     profile: currentUserProfile, 
     userId: currentUserId, 
+    authUser,
     loading: userLoading, 
     refetch: refetchCurrentUser 
   } = useCurrentUserProfile();
+
+  const getDisplayName = () => {
+    if (currentUserProfile?.full_name && currentUserProfile.full_name !== 'Founder') return currentUserProfile.full_name;
+    if (authUser?.user_metadata?.full_name) return authUser.user_metadata.full_name;
+    if (authUser?.email) return authUser.email.split('@')[0];
+    return "Founder";
+  };
+
+  const getDisplayUsername = () => {
+    if (currentUserProfile?.username && currentUserProfile.username !== 'founder') return currentUserProfile.username;
+    if (authUser?.email) return authUser.email.split('@')[0];
+    return "founder";
+  };
 
   const [activeStream, setActiveStream] = useState('all');
   const [activeRegion, setActiveRegion] = useState<string | null>(null);
@@ -303,11 +317,13 @@ export default function FoundersCultApp() {
           onClick={() => setActivePanel('profile')}
           className="w-10 h-10 rounded-full overflow-hidden border border-[var(--border-color)]"
         >
-          {currentUserProfile?.avatar_url ? (
-            <img src={currentUserProfile.avatar_url} className="w-full h-full object-cover" alt="" />
+          {currentUserProfile?.avatar_url || authUser?.user_metadata?.avatar_url ? (
+            <img src={currentUserProfile?.avatar_url || authUser?.user_metadata?.avatar_url} className="w-full h-full object-cover" alt="" />
           ) : (
             <div className="w-full h-full bg-[var(--bg-elevated-1)] flex items-center justify-center">
-              <User size={18} className="text-[var(--text-muted)]" />
+              <span className="text-xs font-medium text-[var(--text-primary)]">
+                {getDisplayName().charAt(0).toUpperCase()}
+              </span>
             </div>
           )}
         </button>
@@ -338,11 +354,11 @@ export default function FoundersCultApp() {
           >
             <div className="w-24 h-24 rounded-full p-[1.5px] bg-gradient-to-tr from-[var(--border-color)] via-[var(--text-primary)] to-[var(--border-color)] shadow-2xl transition-all duration-500 group-hover:p-[2px]">
               <div className="w-full h-full rounded-full bg-[var(--bg-base)] overflow-hidden flex items-center justify-center border border-[var(--border-color)]">
-                {currentUserProfile?.avatar_url ? (
-                  <img src={currentUserProfile.avatar_url} className="w-full h-full object-cover" alt="" />
+                {currentUserProfile?.avatar_url || authUser?.user_metadata?.avatar_url ? (
+                  <img src={currentUserProfile?.avatar_url || authUser?.user_metadata?.avatar_url} className="w-full h-full object-cover" alt="" />
                 ) : (
                   <span className="text-3xl font-[family-name:var(--font-serif)] italic text-[var(--text-primary)]">
-                    {(currentUserProfile?.full_name || 'F').charAt(0)}
+                    {getDisplayName().charAt(0).toUpperCase()}
                   </span>
                 )}
               </div>
@@ -351,10 +367,10 @@ export default function FoundersCultApp() {
           </motion.div>
           
           <div className="text-center">
-            <h2 className="text-xl font-bold tracking-tight mb-1">{currentUserProfile?.full_name || "Founder"}</h2>
+            <h2 className="text-xl font-bold tracking-tight mb-1">{getDisplayName()}</h2>
             <div className="flex flex-col items-center gap-1">
               <span className="text-[9px] uppercase tracking-[0.2em] text-[var(--text-muted)] font-black">Alpha Member</span>
-              <p className="text-[11px] text-[var(--text-secondary)] font-medium">@{currentUserProfile?.username || "founder"}</p>
+              <p className="text-[11px] text-[var(--text-secondary)] font-medium">@{getDisplayUsername()}</p>
             </div>
           </div>
         </div>
@@ -572,7 +588,7 @@ export default function FoundersCultApp() {
               <div className="flex flex-col">
                 <span className="text-[9px] font-black uppercase tracking-[0.4em] text-[var(--text-muted)] mb-1">Nexus Node</span>
                 <span className="text-xs font-bold uppercase tracking-widest">
-                  {activePanel === 'circuit' ? 'Circuit Map' : activePanel === 'post' ? 'Intelligence' : 'Founder'}
+                  {activePanel === 'circuit' ? 'Circuit Map' : activePanel === 'post' ? 'Intelligence' : 'Profile'}
                 </span>
               </div>
               <button 

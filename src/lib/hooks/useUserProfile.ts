@@ -86,6 +86,7 @@ export function useUserProfile(userId: string | null) {
 
 export function useCurrentUserProfile() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [authUser, setAuthUser] = useState<any>(null);
   const { profile, loading, error, refetch } = useUserProfile(userId);
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -94,6 +95,7 @@ export function useCurrentUserProfile() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
+        setAuthUser(user);
         
         // Auto-create profile if missing
         const { data: existingProfile } = await supabase
@@ -109,7 +111,7 @@ export function useCurrentUserProfile() {
             .insert({
               id: user.id,
               username: defaultUsername,
-              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Founder',
+              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
               avatar_url: user.user_metadata?.avatar_url || null,
               bio: 'Building something new.',
               traction_points: 0
@@ -137,6 +139,7 @@ export function useCurrentUserProfile() {
     loading: loading || isInitializing, 
     error, 
     userId,
+    authUser,
     refetch 
   };
 }
