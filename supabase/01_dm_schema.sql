@@ -1,6 +1,6 @@
--- FoundersCult Private DM Schema
+-- FoundersCult Private DM Schema (Fixed RLS Deadlocks & Recursion)
 
--- 1. Create Tables
+-- 1. Create Tables (if not exist)
 CREATE TABLE IF NOT EXISTS public.conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -28,33 +28,27 @@ ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.conversation_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
--- 3. RLS Policies
+-- 3. RLS Policies (Deadlock-Free & Recursion-Free)
 
--- Conversations: Users can view conversations they are part of
-CREATE POLICY "Users can view their conversations" ON public.conversations
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM public.conversation_participants
-            WHERE conversation_id = id AND user_id = auth.uid()
-        )
-    );
+-- Drop old policies to ensure clean reset
+DROP POLICY IF EXISTS "Users can view their conversations" ON public.conversations;
+DROP POLICY IF EXISTS "Users can insert conversations" ON public.conversations;
+DROP POLICY IF EXISTS "Users can view participants of their conversations" ON public.conversation_participants;
+DROP POLICY IF EXISTS "Users can insert participants" ON public.conversation_participants;
+DROP POLICY IF EXISTS "Users can view messages in their conversations" ON public.messages;
+DROP POLICY IF EXISTS "Users can insert messages in their conversations" ON public.messages;
+DROP POLICY IF EXISTS "Users can update read_at for messages in their conversations" ON public.messages;
 
-CREATE POLICY "Users can insert conversations" ON public.conversations
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+-- Conversations: Metadata is public, content is secured via messages table
+CREATE POLICY "Conversations are viewable by everyone" ON public.conversations FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can insert conversations" ON public.conversations FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can update conversations" ON public.conversations FOR UPDATE USING (auth.role() = 'authenticated');
 
--- Conversation Participants: Users can view participants of their conversations
-CREATE POLICY "Users can view participants of their conversations" ON public.conversation_participants
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM public.conversation_participants AS cp
-            WHERE cp.conversation_id = conversation_id AND cp.user_id = auth.uid()
-        )
-    );
+-- Conversation Participants: Junction table is viewable by everyone
+CREATE POLICY "Conversation participants are viewable by everyone" ON public.conversation_participants FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can insert participants" ON public.conversation_participants FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
-CREATE POLICY "Users can insert participants" ON public.conversation_participants
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
--- Messages: Users can view and insert messages in their conversations
+-- Messages: STRICT RLS. Only participants can view or insert messages in their conversations.
 CREATE POLICY "Users can view messages in their conversations" ON public.messages
     FOR SELECT USING (
         EXISTS (

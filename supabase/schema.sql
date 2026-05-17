@@ -164,10 +164,11 @@ CREATE POLICY "Users can view own notifications." ON public.notifications FOR SE
 CREATE POLICY "Users can update own notifications." ON public.notifications FOR UPDATE USING (auth.uid() = recipient_id);
 
 -- CONVERSATIONS & MESSAGES
-CREATE POLICY "Users can view their conversations" ON public.conversations FOR SELECT USING (EXISTS (SELECT 1 FROM public.conversation_participants WHERE conversation_id = id AND user_id = auth.uid()));
-CREATE POLICY "Users can insert conversations" ON public.conversations FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Users can view participants of their conversations" ON public.conversation_participants FOR SELECT USING (EXISTS (SELECT 1 FROM public.conversation_participants AS cp WHERE cp.conversation_id = conversation_id AND cp.user_id = auth.uid()));
-CREATE POLICY "Users can insert participants" ON public.conversation_participants FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Conversations are viewable by everyone" ON public.conversations FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can insert conversations" ON public.conversations FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can update conversations" ON public.conversations FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "Conversation participants are viewable by everyone" ON public.conversation_participants FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can insert participants" ON public.conversation_participants FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Users can view messages in their conversations" ON public.messages FOR SELECT USING (EXISTS (SELECT 1 FROM public.conversation_participants WHERE conversation_id = messages.conversation_id AND user_id = auth.uid()));
 CREATE POLICY "Users can insert messages in their conversations" ON public.messages FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.conversation_participants WHERE conversation_id = messages.conversation_id AND user_id = auth.uid()) AND auth.uid() = sender_id);
 CREATE POLICY "Users can update read_at for messages in their conversations" ON public.messages FOR UPDATE USING (EXISTS (SELECT 1 FROM public.conversation_participants WHERE conversation_id = messages.conversation_id AND user_id = auth.uid()));
