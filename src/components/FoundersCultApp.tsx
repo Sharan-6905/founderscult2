@@ -282,9 +282,21 @@ export default function FoundersCultApp() {
     bio: targetProfile.startup_name ? `Building ${targetProfile.startup_name}` : (targetProfile.bio || 'Building something awesome.'),
     location: targetProfile.location || 'Internet',
     website: targetProfile.website || 'startup.com',
-    followers: targetProfile.followers_count,
-    following: targetProfile.following_count,
-    traction_points: targetProfile.traction_points
+    followers: targetProfile.followers_count || 0,
+    following: targetProfile.following_count || 0,
+    traction_points: targetProfile.traction_points || 0
+  } : (targetId === currentUserId && authUser) ? {
+    id: currentUserId,
+    name: getDisplayName(),
+    handle: `@${getDisplayUsername()}`,
+    avatar: authUser.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(getDisplayName())}&background=050505&color=fff`,
+    coverImage: 'https://images.unsplash.com/photo-1550439062-609e1531270e?auto=format&fit=crop&q=80&w=1000',
+    bio: 'Building something awesome.',
+    location: 'Internet',
+    website: '',
+    followers: 0,
+    following: 0,
+    traction_points: 0
   } : null;
 
   const cinematicTransition = { duration: 0.8, ease: [0.16, 1, 0.3, 1] as any };
