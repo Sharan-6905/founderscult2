@@ -356,12 +356,33 @@ export default function LandingPage({ error: initialError, message }: { error?: 
                       </label>
                     </div>
 
-                    <div className="col-span-2 space-y-4 pt-4">
-                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Social Signals</span>
-                      <div className="grid grid-cols-3 gap-4">
-                         <input placeholder="LinkedIn" className="bg-transparent border border-[var(--border-color)] rounded-xl p-3 text-[10px] focus:border-[var(--text-primary)] outline-none" value={formData.linkedin} onChange={e => setFormData({...formData, linkedin: e.target.value})} />
-                         <input placeholder="X (Twitter)" className="bg-transparent border border-[var(--border-color)] rounded-xl p-3 text-[10px] focus:border-[var(--text-primary)] outline-none" value={formData.twitter} onChange={e => setFormData({...formData, twitter: e.target.value})} />
-                         <input placeholder="Instagram" className="bg-transparent border border-[var(--border-color)] rounded-xl p-3 text-[10px] focus:border-[var(--text-primary)] outline-none" value={formData.instagram} onChange={e => setFormData({...formData, instagram: e.target.value})} />
+                    <div className="col-span-2 space-y-4 pt-6 mt-2 border-t border-[var(--border-color)]">
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">Link Socials (Optional)</span>
+                      <div className="space-y-3">
+                        <div className="relative flex items-center group">
+                          <div className="absolute left-4 text-[var(--text-muted)] group-focus-within:text-[#0A66C2] transition-colors">
+                            <LinkedinIcon size={16} />
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="LinkedIn URL" 
+                            className="w-full bg-transparent border border-[var(--border-color)] rounded-xl py-4 pl-12 pr-4 text-xs focus:border-[#0A66C2] outline-none transition-all placeholder:text-[var(--text-muted)] text-[var(--text-primary)]" 
+                            value={formData.linkedin || ''} 
+                            onChange={e => setFormData({...formData, linkedin: e.target.value})} 
+                          />
+                        </div>
+                        <div className="relative flex items-center group">
+                          <div className="absolute left-4 text-[var(--text-muted)] group-focus-within:text-[var(--text-primary)] transition-colors">
+                            <XIcon size={16} />
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="X (Twitter) Handle" 
+                            className="w-full bg-transparent border border-[var(--border-color)] rounded-xl py-4 pl-12 pr-4 text-xs focus:border-[var(--text-primary)] outline-none transition-all placeholder:text-[var(--text-muted)] text-[var(--text-primary)]" 
+                            value={formData.twitter || ''} 
+                            onChange={e => setFormData({...formData, twitter: e.target.value})} 
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>

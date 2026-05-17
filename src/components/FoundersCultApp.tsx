@@ -275,6 +275,14 @@ export default function FoundersCultApp() {
 
   const cinematicTransition = { duration: 0.8, ease: [0.16, 1, 0.3, 1] as any };
 
+  if (userLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-base)]">
+        <Loader2 className="animate-spin text-[var(--text-primary)]" size={32} />
+      </div>
+    );
+  }
+
   return (
     <div className={`flex h-screen w-full overflow-hidden font-sans transition-colors duration-500 bg-[var(--bg-base)] text-[var(--text-primary)] relative`}>
       <div className="absolute inset-0 bg-noise z-0 opacity-[0.03] pointer-events-none"></div>
