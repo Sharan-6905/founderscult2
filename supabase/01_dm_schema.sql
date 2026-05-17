@@ -73,5 +73,5 @@ CREATE POLICY "Users can update read_at for messages in their conversations" ON 
         )
     );
 
--- 4. Enable Realtime for Messages
-ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+-- 4. Enable Realtime for Messages (Commented out because it was already added in the first run)
+-- ALTER PUBLICATION supabase_realtime ADD TABLE messages;
